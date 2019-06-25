@@ -1,0 +1,8 @@
+---
+layout: post
+title:  "Welcome To My Blog!"
+date:   2019-06-23
+categories: 
+---
+
+Welcome to my blog! I'm starting this mostly as a means to document my experiences while learning about Machine Learning, AI, and other topics, while also solidifying concepts by trying to explain them in my posts. I'm a strong believer of the idea that the best way to learn is to teach, and my hope is that through this blog, I'll be able to develop a deeper understanding of what I'm learning, and maybe provide something that will be useful to others.

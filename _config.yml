@@ -1,0 +1,40 @@
+##The website title
+name: Bhaskar's Blog
+##Markdown processor
+markdown: kramdown
+##syntax highlighter. change it to pygments
+highlighter: pygments
+
+##define base_url for valid usage in sitemap.xml and robots.txt
+base_url: http://mbhaskar1.github.io
+sass:
+  sass_dir: _sass
+  style: :compressed
+paginate: 5
+paginate_path: "page:num"
+##The website description (to be used in meta tags)
+description: A blog to post about my experiences while learning about Machine Learning and AI.
+##Some frequently used keywords on your website
+keywords: Machine Learning, Neural Networks, AI, Mathematics, Math, ML, RL, Reinforcement Learning, Deep Learning
+
+##define this for disqus comment support
+disqus: Bhaskar
+
+##set this to enable google analytics
+#ga_id: analyticsID
+#ga_domain: analyticsDomain
+
+##Some commonly used links
+links:
+  #facebook: username
+  #twitter: username
+  linkedin: bhaskar-mishra
+  email: bdsmishra@gmail.com
+  github: mbhaskar1
+
+plugins:
+  - jekyll-paginate
+##put desired image in img/ directory and set the value accordingly. If not defined, a placeholder image will be used.
+about_image: Photo2.jpg
+##comment this if you want full width posts with no sidebar
+sidebar: on
