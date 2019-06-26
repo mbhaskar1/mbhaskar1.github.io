@@ -48,7 +48,7 @@ To keep from leaving things incomplete, I'll end this by showing the solution to
 
 ![solutions](/img/lagrangian-multipliers/solutions.png)
 
-The function $$f$$ constrained by $$g=1$$ has local minima at points $$(-\frac{\sqrt3}{3}, -\frac{\sqrt3}{3})$$ and $$(\frac{\sqrt3}{3}, \frac{\sqrt3}{3})$$, and local maxima at points $$(-1, 1)$$ and $$(1, -1)$$.
+The function $$f$$ constrained by $$g=1$$ has local minima at points $$\left(-\frac{\sqrt3}{3}, -\frac{\sqrt3}{3}\right)$$ and $$\left(\frac{\sqrt3}{3}, \frac{\sqrt3}{3}\right)$$, and local maxima at points $$(-1, 1)$$ and $$(1, -1)$$.
 
 ---
 
