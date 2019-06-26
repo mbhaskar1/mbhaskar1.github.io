@@ -253,6 +253,17 @@ a {
 		padding: 6px 13px;
 		border: 1px solid #ddd;
 	}
+
+	/// I ADDED ////
+	.img-table{
+		margin-left: auto;
+		margin-right: auto;
+		border: none;
+		border-collapse: collapse;
+		td{
+			border: none;
+		}
+	}
 }
 
 .posts{
