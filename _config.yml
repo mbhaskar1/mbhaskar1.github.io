@@ -3,7 +3,7 @@ name: Bhaskar's Blog
 ##Markdown processor
 markdown: kramdown
 ##syntax highlighter. change it to pygments
-highlighter: pygments
+highlighter: rouge
 
 ##define base_url for valid usage in sitemap.xml and robots.txt
 base_url: http://mbhaskar1.github.io
