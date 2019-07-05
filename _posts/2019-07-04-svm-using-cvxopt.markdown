@@ -12,7 +12,7 @@ excerpt: ... After developing somewhat of an understanding of the algorithm, my 
 
 Over the past couple of days, I've been spending the majority of my time really learning the theory behind Support Vector Machines (SVMs). I've come across many useful resources including the [MIT OCW video](https://www.youtube.com/watch?v=_PwhiWxHK8o) on the subject and the almighty Wikipedia for learning about concepts like [Karush-Kuhn-Tucker Conditions](https://en.wikipedia.org/wiki/Karush%E2%80%93Kuhn%E2%80%93Tucker_conditions), [Wolfe Duality](https://en.wikipedia.org/wiki/Wolfe_duality), and more. I would personally recommend checking out all of those links, as the MIT video provides a nice walkthrough for the math of SVMs and the Wikipedia links clarify the inner workings of that math.
 
-*Side Note:* While the MIT video is a great resource and was really useful in getting a feel for the math, the professor does makes a simplification when applying Lagrange Multipliers. He sets the constraint for the function to be $$y_i(\vec{w}\cdot \vec{x_i} + b) - 1 = 0$$. Obviously, this isn't necessarily true for all $$i$$ as it is not necessary for all points to be on the margin of the SVM. The constraint is actually the inequality, $$y_i(\vec{w}\cdot \vec{x_i} + b) - 1 \geq 0$$. That's the reason KKT (Karush-Kuhn-Tucker) conditions are applied to the problem, and it's the reason for the constraint, $$\alpha_i \geq 0$$.
+*Side Note:* While the MIT video is a great resource and was really useful in getting a feel for the math, the professor does makes a simplification when applying Lagrange Multipliers. He sets the constraint for the function to be $$y_i(w\cdot x_i + b) - 1 = 0$$. Obviously, this isn't necessarily true for all $$i$$ as it is not necessary for all points to be on the margin of the SVM. The constraint is actually the inequality, $$y_i(w\cdot x_i + b) - 1 \geq 0$$. That's the reason KKT (Karush-Kuhn-Tucker) conditions are applied to the problem, and it's the reason for the constraint, $$\alpha_i \geq 0$$.
 
 After developing somewhat of an understanding of the algorithm, my first project was to create an actual implementation of the SVM algorithm. Though it didn't end up being entirely from scratch as I used CVXOPT to solve the convex optimization problem, the implementation helped me better understand how the algorithm worked and what the pros and cons of using it were. In this post, I hope to walk you through that implementation. Note that this post assumes an understanding of the underlying math behind SVMs. If you feel uncomfortable on that front, I would again recommend checking out the resources linked above.
 
@@ -20,15 +20,15 @@ After developing somewhat of an understanding of the algorithm, my first project
 
 Anyways, with that out of the way, let's get into it! For starters, what is the actual problem we're trying to solve here? Yes, we want to find the "maximum-margin hyperplane" that separates our two classes, but how do we formalize that goal mathematically? Well, we've already seen the following optimization problem:
 
-$$\textrm{min}\,\frac{1}{2}||\vec{w}||^2\quad \textrm{given} \quad \sum_i^m y_i(\vec{w}\cdot \vec{x_i} + b) - 1 \geq 0$$
+$$\textrm{min}\,\frac{1}{2}||w||^2\quad \textrm{given} \quad \sum_i^m y_i(w\cdot x_i + b) - 1 \geq 0$$
 
 We've seen how we can apply KKT to this problem to in turn get the following Lagrangian Function and constraint:
 
-$$L=\frac{1}{2}||\vec{w}||^2 - \sum_i^m \lambda_i\left[y_i(\vec{w}\cdot \vec{x_i} + b) - 1\right] \quad \textrm{given} \quad \lambda_i \geq 0$$
+$$L=\frac{1}{2}||w||^2 - \sum_i^m \lambda_i\left[y_i(w\cdot x_i + b) - 1\right] \quad \textrm{given} \quad \lambda_i \geq 0$$
 
-And we've seen how, taking the partial derivative of $$L$$ with respect to $$\vec{w}$$ and $$b$$, and using them in the equation above, can lead us to the following dual representation of the optimization problem
+And we've seen how, taking the partial derivative of $$L$$ with respect to $$w$$ and $$b$$, and using them in the equation above, can lead us to the following dual representation of the optimization problem
 
-$$\textrm{maximize} \:\: L_D = \sum_i^m \lambda_i  - \frac{1}{2}\sum_i^m \sum_j^m \lambda_i \lambda_j y_i y_j (\vec{x_i}\cdot\vec{x_j}) \quad \textrm{given}\quad \sum_i^m\lambda_iy_i=0,\:\lambda_i\geq0$$
+$$\textrm{maximize} \:\: L_D = \sum_i^m \lambda_i  - \frac{1}{2}\sum_i^m \sum_j^m \lambda_i \lambda_j y_i y_j (x_i\cdot x_j) \quad \textrm{given}\quad \sum_i^m\lambda_iy_i=0,\:\lambda_i\geq0$$
 
 Now this is a very nice way to represent the problem. The only unknowns in the problem are the $$\lambda$$'s and if you solve for the ones that maximize $$L_D$$, you get the solution to our optimization problem. Our $$\lambda$$'s can be used to calculate $$b$$ and in turn, the decision boundary for our SVM. So now we just pass our optimization problem to the computer and let it solve it, right? Well, there's actually a little more prepping to do.
 
@@ -48,7 +48,7 @@ Now this seems daunting at first, and I admit it seemed confusing to me as well,
 
 Before we tackle them, however, let's deal with the glaring issue with our optimization problem. CVXOPT requires that the problem be a minimization problem, whereas our problem is designed to be maximized. This can actually be easily fixed by simply multiplying our Lagrangian function by $$-1$$, creating the following optimization problem:
 
-$$\textrm{minimize} \:\: L_D = \frac{1}{2}\sum_i^m \sum_j^m \lambda_i \lambda_j y_i y_j (\vec{x_i}\cdot\vec{x_j}) -\sum_i^m\lambda_i\quad \textrm{given}\quad \sum_i^m\lambda_iy_i=0,\:\lambda_i\geq0$$
+$$\textrm{minimize} \:\: L_D = \frac{1}{2}\sum_i^m \sum_j^m \lambda_i \lambda_j y_i y_j (x_i\cdot x_j) -\sum_i^m\lambda_i\quad \textrm{given}\quad \sum_i^m\lambda_iy_i=0,\:\lambda_i\geq0$$
 
 Multiplying by $$-1$$ reflects all values of the $$L_D$$ function making positive's negative and negative's positive, resulting in the function's global maximum, becoming a global minimum.
 
