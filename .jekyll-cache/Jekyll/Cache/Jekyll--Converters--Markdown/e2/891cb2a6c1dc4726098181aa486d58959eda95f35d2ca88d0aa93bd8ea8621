@@ -1,0 +1,307 @@
+I"��<h2 id="introduction">Introduction</h2>
+
+<p><img src="/img/svm-using-cvxopt/title-image.png" alt="svm" /></p>
+
+<p>Over the past couple of days, I’ve been spending the majority of my time really learning the theory behind Support Vector Machines (SVMs). I’ve come across many useful resources including the <a href="https://www.youtube.com/watch?v=_PwhiWxHK8o">MIT OCW video</a> on the subject and the almighty Wikipedia for learning about concepts like <a href="https://en.wikipedia.org/wiki/Karush%E2%80%93Kuhn%E2%80%93Tucker_conditions">Karush-Kuhn-Tucker Conditions</a>, <a href="https://en.wikipedia.org/wiki/Wolfe_duality">Wolfe Duality</a>, and more. I would personally recommend checking out all of those links, as the MIT video provides a nice walkthrough for the math of SVMs and the Wikipedia links clarify the inner workings of that math.</p>
+
+<p><em>Side Note:</em> While the MIT video is a great resource and was really useful in getting a feel for the math, the professor does makes a simplification when applying Lagrange Multipliers. He sets the constraint for the function to be <script type="math/tex">y_i(w\cdot x_i + b) - 1 = 0</script>. Obviously, this isn’t necessarily true for all <script type="math/tex">i</script> as it is not necessary for all points to be on the margin of the SVM. The constraint is actually the inequality, <script type="math/tex">y_i(w\cdot x_i + b) - 1 \geq 0</script>. That’s the reason KKT (Karush-Kuhn-Tucker) conditions are applied to the problem, and it’s the reason for the constraint, <script type="math/tex">\alpha_i \geq 0</script>.</p>
+
+<p>After developing somewhat of an understanding of the algorithm, my first project was to create an actual implementation of the SVM algorithm. Though it didn’t end up being entirely from scratch as I used CVXOPT to solve the convex optimization problem, the implementation helped me better understand how the algorithm worked and what the pros and cons of using it were. In this post, I hope to walk you through that implementation. Note that this post assumes an understanding of the underlying math behind SVMs. If you feel uncomfortable on that front, I would again recommend checking out the resources linked above.</p>
+
+<h2 id="the-optimization-problem">The Optimization Problem</h2>
+
+<p>Anyways, with that out of the way, let’s get into it! For starters, what is the actual problem we’re trying to solve here? Yes, we want to find the “maximum-margin hyperplane” that separates our two classes, but how do we formalize that goal mathematically? Well, we’ve already seen the following optimization problem:</p>
+
+<script type="math/tex; mode=display">\textrm{min}\,\frac{1}{2}||w||^2\quad \textrm{given} \quad \sum_i^m y_i(w\cdot x_i + b) - 1 \geq 0</script>
+
+<p>We’ve seen how we can apply KKT to this problem to in turn get the following Lagrangian Function and constraint:</p>
+
+<script type="math/tex; mode=display">L=\frac{1}{2}||w||^2 - \sum_i^m \lambda_i\left[y_i(w\cdot x_i + b) - 1\right] \quad \textrm{given} \quad \lambda_i \geq 0</script>
+
+<p>And we’ve seen how, taking the partial derivative of <script type="math/tex">L</script> with respect to <script type="math/tex">w</script> and <script type="math/tex">b</script>, and using them in the equation above, can lead us to the following dual representation of the optimization problem</p>
+
+<script type="math/tex; mode=display">\textrm{maximize} \:\: L_D = \sum_i^m \lambda_i  - \frac{1}{2}\sum_i^m \sum_j^m \lambda_i \lambda_j y_i y_j (x_i\cdot x_j) \quad \textrm{given}\quad \sum_i^m\lambda_iy_i=0,\:\lambda_i\geq0</script>
+
+<p>Now this is a very nice way to represent the problem. The only unknowns in the problem are the <script type="math/tex">\lambda</script>’s and if you solve for the ones that maximize <script type="math/tex">L_D</script>, you get the solution to our optimization problem. Our <script type="math/tex">\lambda</script>’s can be used to calculate <script type="math/tex">b</script> and in turn, the decision boundary for our SVM. So now we just pass our optimization problem to the computer and let it solve it, right? Well, there’s actually a little more prepping to do.</p>
+
+<h2 id="cvxopt-requirements">CVXOPT Requirements</h2>
+
+<p>The thing is, algorithms that solve convex optimization problems like the one we have here¹, often require the problem in a specific format. Specifically, in the case of CVXOPT, it wants convex optimization problems that it can minimize. It also requires the optimization problem to be in the following format:</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\begin{aligned}
+&\textrm{minimize} & \frac{1}{2}x^TPx+q^Tx\\
+&\textrm{subject to} & Gx\preceq h\\
+& & Ax=b
+\end{aligned} %]]></script>
+
+<p>Now this seems daunting at first, and I admit it seemed confusing to me as well, but upon closer examination, these expressions are actually very straight-forward.</p>
+
+<p>Before we tackle them, however, let’s deal with the glaring issue with our optimization problem. CVXOPT requires that the problem be a minimization problem, whereas our problem is designed to be maximized. This can actually be easily fixed by simply multiplying our Lagrangian function by <script type="math/tex">-1</script>, creating the following optimization problem:</p>
+
+<script type="math/tex; mode=display">\textrm{minimize} \:\: L_D = \frac{1}{2}\sum_i^m \sum_j^m \lambda_i \lambda_j y_i y_j (x_i\cdot x_j) -\sum_i^m\lambda_i\quad \textrm{given}\quad \sum_i^m\lambda_iy_i=0,\:\lambda_i\geq0</script>
+
+<p>Multiplying by <script type="math/tex">-1</script> reflects all values of the <script type="math/tex">L_D</script> function making positive’s negative and negative’s positive, resulting in the function’s global maximum, becoming a global minimum.</p>
+
+<p>Now let’s put our optimization problem in the form above. Let’s start by looking at the <script type="math/tex">\frac{1}{2}x^TPx</script> term. If you calculate the value of this expression in terms of the individual elements of the relevant matrices, you get the following:</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\begin{aligned}
+\frac{1}{2}x^TPx&=
+\frac{1}{2}\begin{bmatrix}x_1 & x_2 & \dots & x_m\end{bmatrix} \cdot
+\begin{bmatrix}P_{11} & P_{12} & \dots & P_{1m}\\ P_{21} & P_{22}\\ \vdots & & \ddots \\ P_{m1} & & & P_{mm}\end{bmatrix}\cdot
+\begin{bmatrix}x_1 \\ x_2 \\ \vdots \\ x_m\end{bmatrix}\\
+&= \frac{1}{2}(x_1^2\cdot P_{11} + x_1x_2\cdot P_{12} + x_2x_1 \cdot P_{21} + x_2^2\cdot P_{22} + \dots )\\
+&=\frac{1}{2}\sum_i^m\sum_j^m x_ix_j\cdot P_{ij}
+\end{aligned} %]]></script>
+
+<p>With this, we see that the <script type="math/tex">\frac{1}{2}x^TPx</script> term represents all of the second-order variables in the function that needs to be minimized (in our case, the Lagrangian function). We also see that <script type="math/tex">P</script> is the matrix that satisfies the condition that <script type="math/tex">\frac{1}{2}\sum_i^m\sum_j^m x_ix_j\cdot P_{ij}</script> is equal to the portion of the Lagrangian function with second-order variables. In our specific case, this portion is <script type="math/tex">\sum_i^m \sum_j^m \lambda_i \lambda_j y_i y_j (x_i\cdot x_j)</script>. Note that <script type="math/tex">\lambda_i</script> and <script type="math/tex">\lambda_j</script> represent the <script type="math/tex">x_i</script> and <script type="math/tex">x_j</script> in our problem as they are the unknowns. Do not get them mixed up with the <script type="math/tex">x_i</script> and <script type="math/tex">x_j</script> in our Lagrangian function as those are just the known data points in our problem. Using this, we get the following definition for <script type="math/tex">P</script></p>
+
+<script type="math/tex; mode=display">\frac{1}{2}\sum_i^m\sum_j^m \lambda_i\lambda_j\cdot P_{ij}=\frac{1}{2}\sum_i^m \sum_j^m \lambda_i \lambda_j y_i y_j (x_i\cdot x_j)\quad \Rightarrow \quad P_{ij} = y_iy_j(x_i\cdot x_j)</script>
+
+<p>In a similar fashion, we see that the <script type="math/tex">q^Tx</script> term represents all of the first-order variables in the Lagrangian function. We derive the following definition for <script type="math/tex">q</script> in our problem:</p>
+
+<script type="math/tex; mode=display">q^T\lambda=\sum_i^m q_i\lambda_i=-\sum_i^m \lambda_i \quad \Rightarrow \quad q_i=-1</script>
+
+<p>The <script type="math/tex">Gx \preceq h</script> expression is a linear matrix inequality similar to the form of standard linear matrix equations. It represents any inequality constraints in the optimization problem. In our case, these constraints are <script type="math/tex">\lambda_i \geq 0</script> for all <script type="math/tex">i</script> from <script type="math/tex">0</script> to <script type="math/tex">m</script>. These constraints can be rewritten as <script type="math/tex">-\lambda_i \leq 0</script> to use the less than or equal to symbol. That gives us the following matrices for <script type="math/tex">G</script> and <script type="math/tex">h</script>:</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+G = 
+\begin{bmatrix}
+-1 & 0 & 0 & \dots  & 0\\ 
+0 & -1 & 0 \\
+0 & 0 & -1  & & \vdots\\
+\vdots & & & \ddots \\
+0 & & \dots & & -1
+\end{bmatrix} \quad
+b=
+\begin{bmatrix}
+0\\0\\ \vdots \\ 0
+\end{bmatrix} %]]></script>
+
+<p>Finally, the <script type="math/tex">Ax=b</script> expression is your standard linear matrix equation and it represents any equality constraints in the optimization problem. In our case, we have a single equation, <script type="math/tex">\sum_i^m \lambda_i yi = 0</script>. With that constraint, we get the following matrices for <script type="math/tex">A</script> and <script type="math/tex">b</script>:</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+A=\begin{bmatrix}y_1 & y_2 & \dots & y_m\end{bmatrix} \quad b=\begin{bmatrix}0\end{bmatrix} %]]></script>
+
+<p>With matrices for <script type="math/tex">P</script>, <script type="math/tex">q</script>, <script type="math/tex">G</script>, <script type="math/tex">h</script>, <script type="math/tex">A</script>, and <script type="math/tex">b</script>, and a minimizable optimization problem, we are now ready to computationally solve our SVM problem.</p>
+
+<h2 id="the-code---linear-svm">The Code - Linear SVM</h2>
+
+<p>We’ll start off by importing our relevant modules and creating a basic class for our SVM:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="n">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+<span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="n">sns</span>
+<span class="kn">from</span> <span class="nn">cvxopt</span> <span class="kn">import</span> <span class="n">matrix</span><span class="p">,</span> <span class="n">solvers</span>
+
+<span class="k">class</span> <span class="nc">SVM</span><span class="p">:</span>
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">pass</span>
+	
+	<span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+		<span class="k">pass</span>
+	
+	<span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">u</span><span class="p">):</span>
+		<span class="k">pass</span>
+	
+	<span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">pass</span>
+</code></pre></div></div>
+
+<p>Here we’ve created the functions <code class="highlighter-rouge">fit(self, X, y)</code>,  <code class="highlighter-rouge">predict(self, u)</code>, and <code class="highlighter-rouge">plot(self)</code>. The <code class="highlighter-rouge">fit</code> function will be used to set <code class="highlighter-rouge">lambdas</code> and <code class="highlighter-rouge">b</code> to the appropriate values for the data set, the <code class="highlighter-rouge">predict</code> function will return the predicted class of a given data point, and the <code class="highlighter-rouge">plot</code> function will create a visual plot of the data set and the SVM.</p>
+
+<h3 id="the-fit-function">The Fit Function</h3>
+
+<p>Let’s start by implementing the <code class="highlighter-rouge">fit</code> function. First we need to calculate our <script type="math/tex">P</script>, <script type="math/tex">q</script>, <script type="math/tex">G</script>, <script type="math/tex">h</script>, <script type="math/tex">A</script>, and <script type="math/tex">b</script> matrices:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+	<span class="bp">self</span><span class="o">.</span><span class="n">X</span> <span class="o">=</span> <span class="n">X</span>
+	<span class="bp">self</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="n">y</span>
+	<span class="bp">self</span><span class="o">.</span><span class="n">m</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+	<span class="n">P</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">m</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">m</span><span class="p">))</span>
+	<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">m</span><span class="p">):</span>
+		<span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">m</span><span class="p">):</span>
+			<span class="n">P</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">*</span><span class="n">y</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">X</span><span class="p">[</span><span class="n">j</span><span class="p">])</span>
+	<span class="n">q</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">m</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+	<span class="n">G</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">m</span><span class="p">)</span>
+	<span class="n">h</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">m</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+	<span class="n">A</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">m</span><span class="p">))</span>
+	<span class="n">b</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+</code></pre></div></div>
+
+<p>With this, we have all our matrices initialized with <code class="highlighter-rouge">self.m</code> set to the amount of data points in <code class="highlighter-rouge">X</code>. Note that <code class="highlighter-rouge">np.eye(m)</code> gives you an <script type="math/tex">m\times m</script> matrix with <script type="math/tex">1</script>’s down the diagonal (also called the <script type="math/tex">m\times m</script> identity matrix). That way <code class="highlighter-rouge">-np.eye(self.m)</code> returns the matrix we want for <code class="highlighter-rouge">G</code>.</p>
+
+<p>Now, with the matrices set, we need to convert them to the CVXOPT module’s matrices as the module only reads those objects, and can’t read numpy matrices. This is easy to do as you can convert a numpy matrix to a CVXOPT matrix by doing <code class="highlighter-rouge">matrix(numpy_matrix)</code>:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+	<span class="o">...</span>
+	<span class="n">P</span> <span class="o">=</span> <span class="n">matrix</span><span class="p">(</span><span class="n">P</span><span class="p">)</span>
+	<span class="n">q</span> <span class="o">=</span> <span class="n">matrix</span><span class="p">(</span><span class="n">q</span><span class="p">)</span>
+	<span class="n">G</span> <span class="o">=</span> <span class="n">matrix</span><span class="p">(</span><span class="n">G</span><span class="p">)</span>
+	<span class="n">h</span> <span class="o">=</span> <span class="n">matrix</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>
+	<span class="n">A</span> <span class="o">=</span> <span class="n">matrix</span><span class="p">(</span><span class="n">A</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s">'double'</span><span class="p">))</span>
+	<span class="n">b</span> <span class="o">=</span> <span class="n">matrix</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>We modify <code class="highlighter-rouge">A</code> to be a matrix with type ‘double’ because it initially contains integers from the <code class="highlighter-rouge">y</code> matrix, whereas CVXOPT requires numbers in the form of doubles. The rest of the matrices contain doubles by default, and therefore, don’t require that conversion.</p>
+
+<p>With all the conversions done, we simply need to pass the matrices to CVXOPT to solve the optimization problem. We’ll specifically use the function <code class="highlighter-rouge">solvers.qp(P, q, G, h, A, b)</code></p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+	<span class="o">...</span>
+	<span class="n">sol</span> <span class="o">=</span> <span class="n">solvers</span><span class="o">.</span><span class="n">qp</span><span class="p">(</span><span class="n">P</span><span class="p">,</span> <span class="n">q</span><span class="p">,</span> <span class="n">G</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+	<span class="bp">self</span><span class="o">.</span><span class="n">lambdas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">sol</span><span class="p">[</span><span class="s">'x'</span><span class="p">])</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">m</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>Now that we have the lambdas, we need to calculate <script type="math/tex">b</script>. This is done by multiplying both sides of the constraint that support vectors have by <script type="math/tex">y_{SV}</script> and solving for <script type="math/tex">b</script>:</p>
+
+<script type="math/tex; mode=display">y_{SV}(w\cdot x_{SV} + b) - 1=0 \quad \Rightarrow\quad (w\cdot x_{SV} + b) - y_{SV}=0 \quad \Rightarrow\quad b=y_{SV} - w\cdot x_{SV}</script>
+
+<p>Plugging in <script type="math/tex">w=\sum_i^m \lambda_i y_i x_i</script>, we get the following:</p>
+
+<script type="math/tex; mode=display">b=y_{SV} - \sum_i^m \lambda_i y_i (x_i\cdot x_{SV})</script>
+
+<p>Now we just need to find a data point that’s a support vector, and we can use it to calculate <script type="math/tex">b</script>. This can be done by using a property of the <script type="math/tex">\lambda</script>’s. In KKT, the <script type="math/tex">\lambda</script> multipliers for inequality constraints are only positive if they constrain the optimization problem or in other words, affect the location of the minimum. This makes sense as constraints that don’t constrain the optimization problem, don’t need to be considered and can therefore be nullified by setting their <script type="math/tex">\lambda</script> multiplier to 0. For a better explanation, I’d recommend reading <a href="http://people.duke.edu/~hpgavin/cee201/LagrangeMultipliers.pdf">this paper</a>. In the context of our problem, the constraints that constrain the optimization problem are the ones generated by support vectors. Based on this, a data point with a respective <script type="math/tex">\lambda</script> that’s greater than 0 will be a support vector.</p>
+
+<p>For our program, we will actually require the <script type="math/tex">\lambda</script> to be greater than <script type="math/tex">10^{-4}</script>. This is because CVXOPT doesn’t set any <script type="math/tex">\lambda</script> to <script type="math/tex">0</script>, but rather gets them very close (like <script type="math/tex">10^{-8}</script>). By requiring the multiplier to be “sufficiently” greater than <script type="math/tex">0</script>, we ensure that non-support vectors aren’t selected.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+	<span class="o">...</span>
+	<span class="n">SV</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lambdas</span> <span class="o">&gt;</span> <span class="mf">1e-4</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+	<span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="n">SV</span><span class="p">]</span> <span class="o">-</span> <span class="nb">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lambdas</span> <span class="o">*</span> <span class="n">y</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">X</span><span class="p">[</span><span class="n">SV</span><span class="p">]</span><span class="o">.</span><span class="n">T</span><span class="p">))</span>
+</code></pre></div></div>
+
+<p>And with that, we now have a support vector machine fit to the data set. Now we just need to implement the <code class="highlighter-rouge">predict</code> and <code class="highlighter-rouge">plot</code> functions.</p>
+
+<h3 id="the-predict-function">The Predict Function</h3>
+
+<p>This one is fairly straight forward. We’ll use the inequality for the decision boundary and use <script type="math/tex">w=\sum_i^m \lambda_i y_i x_i</script> to put it in terms of <script type="math/tex">\lambda</script>. Note that in the following inequality <script type="math/tex">u</script> represents the data point whose class we’re trying to predict.</p>
+
+<script type="math/tex; mode=display">w\cdot u + b \geq 0 \quad \Rightarrow \quad b+\sum_i^m \lambda_i y_i (x_i\cdot u) \geq 0</script>
+
+<p>Our SVM will predict a class of <script type="math/tex">1</script> if the above inequality is true and <script type="math/tex">-1</script> otherwise:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">u</span><span class="p">):</span>
+	<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="o">+</span> <span class="nb">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lambdas</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">y</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="p">,</span> <span class="n">u</span><span class="o">.</span><span class="n">T</span><span class="p">))</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+		<span class="k">return</span> <span class="mi">1</span>
+	<span class="k">else</span><span class="p">:</span>
+		<span class="k">return</span> <span class="o">-</span><span class="mi">1</span>
+</code></pre></div></div>
+
+<h3 id="the-plot-function">The Plot Function</h3>
+
+<p>Finally, for the plot function, we will simply plot a contour plot of <script type="math/tex">b+\sum_i^m \lambda_i y_i (x_i \cdot u)</script> from above and draw the levels where that expression is equal to <script type="math/tex">1</script>, <script type="math/tex">0</script>, or <script type="math/tex">-1</script>. This will give us a plot of the decision boundary and the margins for both classes.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+	<span class="n">x_min</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span> <span class="o">-</span> <span class="mf">0.5</span>
+	<span class="n">x_max</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span> <span class="o">+</span> <span class="mf">0.5</span>
+	<span class="n">y_min</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">])</span> <span class="o">-</span> <span class="mf">0.5</span>
+	<span class="n">y_max</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">])</span> <span class="o">+</span> <span class="mf">0.5</span>
+	<span class="n">step</span> <span class="o">=</span> <span class="mf">0.02</span>
+	<span class="n">xx</span><span class="p">,</span> <span class="n">yy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">x_min</span><span class="p">,</span> <span class="n">x_max</span><span class="p">,</span> <span class="n">step</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">y_min</span><span class="p">,</span> <span class="n">y_max</span><span class="p">,</span> <span class="n">step</span><span class="p">))</span>
+	<span class="n">d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">xx</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">yy</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+	<span class="n">Z</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="nb">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lambdas</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">y</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">T</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+	<span class="n">Z</span> <span class="o">=</span> <span class="n">Z</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">xx</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+	<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
+	<span class="n">sns</span><span class="o">.</span><span class="n">scatterplot</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">y</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">hue</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+	<span class="n">ax</span><span class="o">.</span><span class="n">contour</span><span class="p">(</span><span class="n">xx</span><span class="p">,</span> <span class="n">yy</span><span class="p">,</span> <span class="n">Z</span><span class="p">,</span> <span class="n">levels</span><span class="o">=</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+	<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</code></pre></div></div>
+
+<p>I won’t explain this code as it’s not relevant to SVM’s, but if you find it confusing, I would look into the documentation for MatPlotLib and Seaborn and information on contour plots/scatter plots in those modules.</p>
+
+<h3 id="lets-test-it">Let’s Test It</h3>
+
+<p>Now that we have a complete <code class="highlighter-rouge">SVM</code> class, we just need to generate some training data and pass it to the SVM:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">],</span> <span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">3</span><span class="p">]])</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+
+<span class="n">svm</span> <span class="o">=</span> <span class="n">SVM</span><span class="p">()</span>
+<span class="n">svm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="n">svm</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+</code></pre></div></div>
+
+<p>This gives us the following plot:</p>
+
+<p><img src="/img/svm-using-cvxopt/linear-svm.png" alt="linear-svm" /></p>
+
+<h2 id="non-linear-svm-using-kernels">Non-linear SVM using Kernels</h2>
+
+<p>So we can separate linearly separable data with a large margin, linear decision boundary. What about cases where the data isn’t linearly separable? Typically, we would add more features to transform the data in a way that allows it to be linearly separated. For example, let’s say we define a function <script type="math/tex">\phi</script> to create the new data like so:</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\phi(\begin{bmatrix}x_0 & x_1\end{bmatrix}) = \begin{bmatrix}x_0&x_1&x_0^2& x_0x_1& x_1^2\end{bmatrix} %]]></script>
+
+<p>This may make our data linearly separable in many cases, and we could stop here and use our SVM on this new data. The issue with that is that applying the <script type="math/tex">\phi</script> function on all the data points is a horribly inefficient operation. For more complex transformations with more features to start off with and more new features to create, this approach ceases to be even remotely reasonable.</p>
+
+<p>Thankfully, SVM’s allow for an alternative way to approach this. One of the reasons SVM’s are so powerful is that they only depend on the dot product of data points (You can check this for yourself. Look at the optimization problem and the decision boundary we’ve used above). The value of the individual data points aren’t required. In the context of the <script type="math/tex">\phi</script> function, this means we only need to know <script type="math/tex">\phi(\vec{x}) \cdot \phi(\vec{y})</script> and not the value of any individual <script type="math/tex">\phi(\vec{x})</script>. This dot product of two transformed vectors is what’s called a kernel.</p>
+
+<p>One example of a kernel is the polynomial kernel. It has the following definition:</p>
+
+<script type="math/tex; mode=display">K_P(\vec{x}, \vec{y})=(1+x\cdot y)^p</script>
+
+<p>If we look at the case where <script type="math/tex">p=2</script> and assume we’re dealing with two-dimensional vectors, we get the following <script type="math/tex">\phi</script> function:</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+K_P(\vec{x}, \vec{y})=(1+x\cdot y)^2\quad \Rightarrow\quad \phi(\begin{bmatrix}x_0& x_1\end{bmatrix})= \begin{bmatrix}x_0^2 & x_1^2 & \sqrt{2}x_0x_1 & \sqrt{2}x_0 & \sqrt{2}x_1 & 1\end{bmatrix} %]]></script>
+
+<p>For higher values of <script type="math/tex">p</script>, the kernel can come from even more features. This grants us the benefit of being able to create a very complex feature space out of our data set without having the drawback of computing expensive transformation functions.</p>
+
+<p>To start implementing this in our code, we need to define a kernel function. For our polynomial kernel, we’ll be using <script type="math/tex">p=3</script>:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">kernel</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+	<span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s">'linear'</span><span class="p">:</span>
+		<span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+	<span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s">'poly'</span><span class="p">:</span>
+		<span class="k">return</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">.</span><span class="n">T</span><span class="p">))</span> <span class="o">**</span> <span class="mi">3</span>
+</code></pre></div></div>
+
+<p>Now, we simply need to let the <code class="highlighter-rouge">fit</code> function take <code class="highlighter-rouge">kernel_name</code> as a parameter and then replace all dot products between two data points with the kernel of them:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">kernel_name</span><span class="o">=</span><span class="s">'linear'</span><span class="p">):</span>
+	<span class="o">...</span>
+	<span class="bp">self</span><span class="o">.</span><span class="n">kernel_name</span> <span class="o">=</span> <span class="n">kernel_name</span>
+	<span class="o">...</span>
+	<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">m</span><span class="p">):</span>
+		<span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">m</span><span class="p">):</span>
+			<span class="n">P</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">*</span><span class="n">y</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">*</span><span class="n">kernel</span><span class="p">(</span><span class="n">kernel_name</span><span class="p">,</span> <span class="n">X</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">X</span><span class="p">[</span><span class="n">j</span><span class="p">])</span>
+	<span class="o">...</span>
+	<span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="n">SV</span><span class="p">]</span> <span class="o">-</span> <span class="nb">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lambdas</span> <span class="o">*</span> <span class="n">y</span> <span class="o">*</span> <span class="n">kernel</span><span class="p">(</span><span class="n">kernel_name</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">X</span><span class="p">[</span><span class="n">SV</span><span class="p">]))</span>
+
+<span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">u</span><span class="p">):</span>
+	<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="o">+</span> <span class="nb">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lambdas</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">y</span> <span class="o">*</span> <span class="n">kernel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="p">,</span> <span class="n">u</span><span class="p">))</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="o">...</span>
+
+<span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+	<span class="o">...</span>
+	<span class="n">Z</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="nb">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lambdas</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">m</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">m</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span> <span class="o">*</span> <span class="n">kernel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="p">,</span> <span class="n">d</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+	<span class="o">...</span>
+</code></pre></div></div>
+
+<p>We can test this modified SVM class on a non-linearly separable data set:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">X_2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]])</span>
+<span class="n">y_2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+<span class="n">svm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_2</span><span class="p">,</span> <span class="n">y_2</span><span class="p">,</span> <span class="n">kernel_name</span><span class="o">=</span><span class="s">'poly'</span><span class="p">)</span>
+<span class="n">svm</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+</code></pre></div></div>
+
+<p>This produces the following plot. We have separated the non-linearly separable data set!</p>
+
+<p><img src="/img/svm-using-cvxopt/non-linear-svm.png" alt="non-linear-svm" /></p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>Well that took a lot longer than I expected… What was supposed to be a post of similar length to my first one ended up being almost 3 times as long. Anyways, I hope you got something out of this. I’ll leave a link to the full code below and I encourage you to play around with it. Try out a different kernel, an interesting data set, or a higher dimensional feature space.</p>
+
+<p>As before, I’m sure I’ve made at least a few mistakes in this long post, so if you notice anything that’s off or have any suggestions, please leave a comment below.</p>
+
+<p>Full Code: <a href="https://github.com/mbhaskar1/mbhaskar1.github.io/blob/master/code_examples/svm.py">https://github.com/mbhaskar1/mbhaskar1.github.io/blob/master/code_examples/svm.py</a></p>
+
+<hr />
+<p>¹ The proof that SVM optimization problems are convex is complex, but it’s a commonly known fact about them and is one of the primary reasons they’re so powerful</p>
+:ET

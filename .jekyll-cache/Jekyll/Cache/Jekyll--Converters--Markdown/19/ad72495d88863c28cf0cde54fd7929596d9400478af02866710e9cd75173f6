@@ -1,0 +1,55 @@
+I"<p>Lagrangian Multipliers is a concept commonly taught in Calculus III classes. It’s an amazing mathematical tool that allows you to find the local extrema of any function under a constraint. While it is an incredibly useful tool to have in a mathemetician’s toolkit, in my experience, very few students actually understand how it works. Yes, you set the gradient of the function you’re optimizing equal to some multiplier times the gradient of your constraint, and solving the resulting system gives you the local extrema. But why does that work? In this post, I hope to provide some intuition to answer that question.</p>
+
+<p><em>Note: This post assumes knowledge of basic concepts of multivariable calculus such as partial derivatives, gradients, etc.</em></p>
+
+<p>So let’s get started. For the purposes of this post, we’ll be solving a very specific problem. We’ll be trying to find the extrema of the function <script type="math/tex">f(x, y)=x^2+y^2</script> given the constraint <script type="math/tex">g(x, y)=x^2+y^2+xy=1</script>. Let’s graph both of these functions:</p>
+
+<table class="img-table">
+  <tbody>
+    <tr>
+      <td><img src="/img/lagrangian-multipliers/f-graph.png" alt="f-graph" /></td>
+      <td><img src="/img/lagrangian-multipliers/g-graph.png" alt="g-graph" /></td>
+    </tr>
+  </tbody>
+</table>
+
+<p>We’ll now proceed by analyzing various properties of either graph at various points. Specifically, we’ll be looking at the gradient of function <script type="math/tex">f</script> starting at the point <script type="math/tex">P_1=(0, 1)</script>:</p>
+
+<p><img src="/img/lagrangian-multipliers/gradient.png" alt="gradient" /></p>
+
+<p>In the above graph, I’ve drawn the gradient vector in orange and then split it into two components, one tangent to the constraint function, and one normal to it. Now, using the definition of a gradient as pointing in the direction of steepest ascent and having a magnitude equal to the “slope” in that direction, we can come to many important conclusions about the point <script type="math/tex">P_1</script>. For example, since the component of the gradient tangent to the constraint function points to the left, we know that as we move a small distance to the left on the constraint function, the value of <script type="math/tex">f</script> will increase. Similarly, we also know that as we move a small distance to the right on the constraint function, the value of <script type="math/tex">f</script> will decrease. Combining these two statements, we can say with certainty that the point <script type="math/tex">(0, 1)</script> is not a local extrema for the function <script type="math/tex">f</script> given our constraint function.</p>
+
+<p>This is analagous to the derivative of a function being negative. The value of the function increases as you decrease the value of the input (move to the left), and just as in the case above, that point can’t be a local extrema.</p>
+
+<p>Now we’re going to look at the point <script type="math/tex">P_2=(-1, 1)</script>:</p>
+
+<p><img src="/img/lagrangian-multipliers/gradient-2.png" alt="gradient-2" /></p>
+
+<p>In this case, the gradient vector is perpendicular to the constraint function, and as a result, there is no component tangent to it. If we move a very small distance to the left or right along the constraint function, there will be no change in the function <script type="math/tex">f</script>. As such, the point <script type="math/tex">P_2</script> can be considered a critical point which can be a local extrema.</p>
+
+<p>This is analagous to the derivative of a function being zero. Small changes in the input of the function cause almost no change in the value of the function, and that particular input can be a local extrema of the function.</p>
+
+<p>With the comparison of these two points, it becomes clear that the key to finding local extrema in constrained optimization problems like this is to find points where the gradient of the function that needs to be optimized, <script type="math/tex">f</script>, is perpendicular to the constraint function, <script type="math/tex">g=k</script>. Just as you set the derivative equal to <script type="math/tex">0</script> to find the local extrema of a single-variable function, you set the component of the gradient tangent to the constraint function equal to <script type="math/tex">0</script> to find the local extrema of the constrained multi-variable function.</p>
+
+<p>Now, to represent the goal of finding points where the gradient vector is perpendicular to the constraint function in a solvable form, we need some vector that is always perpendicular to the constraint function. If both vectors have the same direction, we know the gradient vector is perpendicular. It turns out that the gradient of the function <script type="math/tex">g</script> actually serves as this vector. This is because of the concept in Calculus III that the gradient of a function along a level curve on that function is always perpendicular to that curve. Since our constraint function is in the form <script type="math/tex">g(x, y) = k</script>, it is a level curve of the function <script type="math/tex">g</script> and therefore, the gradient of <script type="math/tex">g</script> will be perpendicular to the constraint function.</p>
+
+<p>Knowing all this, we can now just set the gradient of <script type="math/tex">f</script> equal to some multiple of the gradient of <script type="math/tex">g</script>, setting them to have the same direction:</p>
+
+<script type="math/tex; mode=display">\nabla f = \lambda \nabla g</script>
+
+<p>And there we have the fundamental equation of Lagrangian Multipliers!</p>
+
+<hr />
+
+<p>I hope that this post made Lagrangian Multipliers make a bit more sense. This is my first post, so I’m sure I’ve made some mistakes here and there, and I’d certainly appreciate any suggestions or improvements.</p>
+
+<p>To keep from leaving things incomplete, I’ll end this by showing the solution to the problem introduced at the beginning of the post.</p>
+
+<p><img src="/img/lagrangian-multipliers/solutions.png" alt="solutions" /></p>
+
+<p>The function <script type="math/tex">f</script> constrained by <script type="math/tex">g=1</script> has local minima at points <script type="math/tex">\left(-\frac{\sqrt3}{3}, -\frac{\sqrt3}{3}\right)</script> and <script type="math/tex">\left(\frac{\sqrt3}{3}, \frac{\sqrt3}{3}\right)</script>, and local maxima at points <script type="math/tex">(-1, 1)</script> and <script type="math/tex">(1, -1)</script>.</p>
+
+<hr />
+
+<p>* <em>The gradient vectors in the graphs in this post have been scaled down to fit in the image</em></p>
+:ET
