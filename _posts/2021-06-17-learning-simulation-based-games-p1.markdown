@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Paper Walkthrough: Learning Equilibria in Simulation Based Games - Part 1"
-date:   2021-06-17
+date:   2021-06-30
 categories: [paper-walkthrough]
 excerpt: 
 ---

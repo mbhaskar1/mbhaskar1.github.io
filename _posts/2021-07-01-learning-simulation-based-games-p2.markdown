@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Paper Walkthrough: Learning Equilibria in Simulation Based Games - Part 2"
-date:   2021-07-01
+date:   2021-07-08
 categories: [paper-walkthrough]
 excerpt: This is part 2 of my Paper Walkthrough of the paper "Learning Equilibria in Simulation Based Games" by Enrique Areyan Viqueria, Cyrus Cousins, Eli Upfal, and Amy Greenwald [1]. If you have not read part 1, please go back and read it first. I will begin this part by doing a small recap of what has been covered so far...
 ---
