@@ -1,0 +1,454 @@
+I"K�<p>This is part 2 of my Paper Walkthrough of the paper <a href="http://arxiv.org/abs/1905.13379">“Learning Equilibria in Simulation Based Games”</a> by Enrique Areyan Viqueria, Cyrus Cousins, Eli Upfal, and Amy Greenwald [1]. If you have not read <a href="https://mbhaskar1.github.io/paper-walkthrough/2021/06/17/learning-simulation-based-games-p1.html">part 1</a>, please go back and read it first. I will begin this part by doing a small recap of what has been covered so far.</p>
+
+<p>In part 1 of this Paper Walkthrough, we primarily laid down the groundwork for the problem that is going to be analyzed. We introduced several formal game representations, including <strong>expected normal-form games</strong> and <strong>empirical normal-form games</strong>, the latter being what we use to represent simulation-based games. We formulated a metric <script type="math/tex">d_\infty</script> for measuring the closeness between two normal-form games, in this case an empirical normal-form game and the expected normal-form game it is approximating, and we argued for the appropriateness of the metric given our use case. Finally, in the spirit of the Probably Approximately Correct Learning Framework, we decided to direct our analysis towards searching for guarantees about closeness that hold with high probability, but not necessarily with certainty. More precisely, given a sample <script type="math/tex">X\sim \mathscr{D}^m</script> used to create an empirical normal-form game <script type="math/tex">\Gamma_X = \langle P, S, \hat{u}\rangle</script> approximating an expected normal-form game <script type="math/tex">\Gamma_\mathscr{D} = \langle P, S, u\rangle</script>, and an error-rate <script type="math/tex">\delta\in (0, 1)</script>, we are searching for <script type="math/tex">\epsilon>0</script> that result in strong guarantees of the form</p>
+
+<script type="math/tex; mode=display">\begin{equation*}
+    \textrm{P}(d_\infty(\Gamma_X, \Gamma_\mathscr{D})\leq \epsilon)\geq 1 - \delta.
+\end{equation*}</script>
+
+<p>We ended Part 1 having formulated the above problem. In this part, we will explore the methods used by the paper to tackle it.</p>
+
+<h1 id="approach-1---hoeffdings-inequality">Approach 1 - Hoeffding’s Inequality</h1>
+
+<p>The first approach used to form guarantees about <script type="math/tex">d_\infty(\Gamma_X, \Gamma_\mathscr{D})</script> is based on a theorem known as <strong>Hoeffding’s Inequality</strong>. Before getting into this theorem, we’re going to use the definition of <script type="math/tex">d_\infty</script> to rewrite our condition on <script type="math/tex">\epsilon</script> as follows:</p>
+
+<script type="math/tex; mode=display">\begin{equation*}
+    \textrm{P}(\forall p, s\in P\times S:\,\, \vert u_p(s; \mathscr{D}) - \hat{u}_p(s; X)\vert\leq \epsilon)\geq 1 - \delta.\quad\textbf{(1)}
+\end{equation*}</script>
+
+<p>The Bonferroni inequality, also known as the <strong>union bound</strong>, states that for a countable set of events <script type="math/tex">E_1, E_2, \dots, E_n</script>, we have <script type="math/tex">\textrm{P}(\bigcup_{i=1}^n E_i)\leq \sum_{i=1}^n P(E_i)</script>. The inequality can be proven easily using induction, and the fact that <script type="math/tex">\textrm{P}(A\cup B) = \textrm{P}(A) + \textrm{P}(B) - \textrm{P}(A\cap B)</script>. Using basic probability rules, the union bound can be used to derive the following inequality:</p>
+
+<script type="math/tex; mode=display">\begin{equation*}
+    \textrm{P}\left(\bigcap_{i=1}^n E_i\right) = 1 - \textrm{P}\left(\bigcup_{i=1}^n \neg E_i\right) \geq 1 - \sum_{i=1}^n \textrm{P}(\neg E_i).
+\end{equation*}</script>
+
+<p>Applying this inequality to the left side of our condition from above, we get</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\begin{align*}
+    \textrm{P}(\forall p, s\in P\times S:\,\, \vert u_p(s; \mathscr{D}) - \hat{u}_p(s; X)\vert\leq \epsilon) &\geq 1 - \sum_{p, s\in P\times S} \textrm{P}(\vert u_p(s; \mathscr{D}) - \hat{u}_p(s; X)\vert > \epsilon)\\
+    &\geq 1 - \vert P \times S\vert \max_{p, s\in P\times S}\textrm{P}(\vert u_p(s; \mathscr{D}) - \hat{u}_p(s; X)\vert > \epsilon)
+\end{align*} %]]></script>
+
+<p>As a result of this, in order to search for small <script type="math/tex">\epsilon</script> satisfying condition <script type="math/tex">\textbf{(1)}</script>, we can search for <script type="math/tex">\epsilon</script> satisfying the stronger condition that <script type="math/tex">1 - \vert P \times S\vert \max_{p, s\in P\times S}\textrm{P}(\vert u_p(s; \mathscr{D}) - \hat{u}_p(s; X)\vert > \epsilon)\geq 1 - \delta</script>, or equivalently, that for all <script type="math/tex">p, s\in P\times S</script>, it is the case that</p>
+
+<script type="math/tex; mode=display">\begin{equation*}
+    P(\vert u_p(s; \mathscr{D}) - \hat{u}_p(s; X)\vert > \epsilon) \leq \frac{\delta}{\vert P\times S\vert}.
+\end{equation*}</script>
+
+<p>We will use Hoeffding’s Inequality to find <script type="math/tex">\epsilon</script> satisfying this new condition. In order to build up to Hoeffding’s Inequality, we will first prove some preliminary theorems. The following explanation of Hoeffding’s Inequality is based directly on lecture notes on Hoeffding’s Inequality by Dr. Clayton Scott from University of Michigan [3].</p>
+
+<p>The first theorem we will look at is <strong>Markov’s Inequality</strong>. This theorem is taught in introductory statistics courses, but since the proof is so short, I will include it below.</p>
+
+<hr />
+
+<p><strong>Markov’s Inequality:</strong> If <script type="math/tex">U</script> is a non-negative random variable on <script type="math/tex">\mathbb{R}</script>, then for all <script type="math/tex">t>0</script>,</p>
+
+<script type="math/tex; mode=display">\begin{equation*}
+    \textrm{P}(U\geq t)\leq \frac{\mathbb{E}[U]}{t}.
+\end{equation*}</script>
+
+<p><em>Proof:</em> Let <script type="math/tex">U</script> be a non-negative random variable on <script type="math/tex">\mathbb{R}</script>. Since <script type="math/tex">U</script> is non-negative, we have</p>
+
+<script type="math/tex; mode=display">\begin{equation*}
+    \textrm{P}(U\geq t) = \mathbb{E}\left[\textbf{1}_{\{U\geq t\}}\right]\leq \mathbb{E}\left[\frac{U}{t}\textbf{1}_{\{U\geq t\}}\right] = \frac{1}{t}\mathbb{E}\left[U\textbf{1}_{\{U\geq t\}}\right]\leq \frac{1}{t}\mathbb{E}[U]. 
+\end{equation*}</script>
+
+<p>Since <script type="math/tex">U</script> was arbitrary, we are done.</p>
+
+<hr />
+
+<p>Using Markov’s Inequality, we can derive a corollary known as <strong>Chernoff’s Bounding Method</strong>.</p>
+
+<hr />
+
+<p><strong>Chernoff’s Bounding Method:</strong> Let <script type="math/tex">Z</script> be a random variable on <script type="math/tex">\mathbb{R}</script>. Then for all <script type="math/tex">t> 0</script>,</p>
+
+<script type="math/tex; mode=display">\begin{equation*}
+    \textrm{P}(Z\geq t) \leq \inf_{s > 0}\frac{\mathbb{E}\left[e^{sZ}\right]}{e^{st}}.
+\end{equation*}</script>
+
+<p><em>Proof:</em> For any <script type="math/tex">s > 0</script>, we can use Markov’s inequality to get</p>
+
+<script type="math/tex; mode=display">\begin{equation*}
+    \textrm{P}(Z\geq t) = \textrm{P}(sZ\geq st) = \textrm{P}(e^{sZ}\geq e^{st})\leq \frac{\mathbb{E}\left[e^{sZ}\right]}{e^{st}}.
+\end{equation*}</script>
+
+<p>Since <script type="math/tex">\textrm{P}(Z\geq t)\leq \frac{\mathbb{E}\left[e^{sZ}\right]}{e^{st}}</script> for all <script type="math/tex">s> 0</script>, it must be the case that</p>
+
+<script type="math/tex; mode=display">\begin{equation*}
+    \textrm{P}(Z\geq t) \leq \inf_{s> 0}\frac{\mathbb{E}\left[e^{sZ}\right]}{e^{st}}.
+\end{equation*}</script>
+
+<hr />
+
+<p>Using Chernoff’s Bounding Method, along with Taylor’s Theorem with the Lagrange form of the remainder from calculus, we will now state and prove a lemma known as <strong>Hoeffding’s Lemma</strong>, which we will then use to finally prove Hoeffding’s Inequality.</p>
+
+<hr />
+
+<p><strong>Hoeffding’s Lemma:</strong> Let <script type="math/tex">V</script> be a random variable on <script type="math/tex">\mathbb{R}</script> with <script type="math/tex">\mathbb{E}[V]=0</script>, and suppose that <script type="math/tex">a\leq V\leq b</script> with probability one, where <script type="math/tex">% <![CDATA[
+a < b %]]></script>. Then for all <script type="math/tex">s > 0</script></p>
+
+<script type="math/tex; mode=display">\begin{equation*}
+    \mathbb{E}[e^{sV}]\leq e^{s^2(b-a)^2/8}
+\end{equation*}</script>
+
+<p><em>Proof:</em> Let <script type="math/tex">s>0</script>. Since the second-derivative of the function <script type="math/tex">x\mapsto e^{sx}</script> is always positive, we know that it is a convex function. Recall that any line segment connecting points on the graph of a real-valued convex function will lie at or above the graph between the two points. This gives us that for all <script type="math/tex">x\in [a, b]</script> and <script type="math/tex">p\in [0, 1]</script>, it is the case that</p>
+
+<script type="math/tex; mode=display">\begin{equation*}
+    e^{sx} \leq pe^{sa} + (1 - p)e^{sb}.
+\end{equation*}</script>
+
+<p>Using <script type="math/tex">p=\frac{V-a}{b-a}</script> and <script type="math/tex">x = V</script>, this gives us</p>
+
+<script type="math/tex; mode=display">\begin{equation*}
+    e^{sV} \leq \frac{V - a}{b - a}e^{sa} + \frac{b - V}{b - a}e^{sb}.
+\end{equation*}</script>
+
+<p>Taking the expectation of both sides of the above inequality, we get</p>
+
+<script type="math/tex; mode=display">\begin{equation*}
+    \mathbb{E}[e^{sV}] \leq \mathbb{E}\left[\frac{V - a}{b - a}e^{sa} + \frac{b - V}{b - a}e^{sb}\right].
+\end{equation*}</script>
+
+<p>Notice that the function <script type="math/tex">V\mapsto \frac{V - a}{b - a}e^{sa} + \frac{b - V}{b - a}e^{sb}</script> is a straight line and is therefore convex, meeting the conditions for Jensen’s Inquality. Applying Jensen’s Inequality and the fact that <script type="math/tex">\mathbb{E}[V] = 0</script>, we get</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\begin{align*}
+    \mathbb{E}[e^{sV}] &\leq \frac{\mathbb{E}[V] - a}{b - a}e^{sa} + \frac{b - \mathbb{E}[V]}{b - a}e^{sb}\\
+    &= \frac{b}{b - a}e^{sb} - \frac{a}{b - a}e^{sa}.\quad\textbf{(2)}
+\end{align*} %]]></script>
+
+<p>Now let <script type="math/tex">p:= \frac{b}{b - a}</script> and, with the substitution <script type="math/tex">u=(b-a)s</script>, consider the function:</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\begin{align*}
+    \varphi(u) &= \log\left(\frac{b}{b - a}e^{sb} - \frac{a}{b - a}e^{sa}\right)\\
+    &= \log(pe^{sa} + (1 - p)e^{sb})\\
+    &= \log(e^{sa}(p + (1-p)e^{sb-sa}))\\
+    &= sa\frac{b-a}{b-a} + \log(p + (1-p)e^u)\\
+    &= (p - 1)u + \log(p + (1-p)e^u).
+\end{align*} %]]></script>
+
+<p>We have that</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\begin{align*}
+    \varphi'(u) &= (p-1) + \frac{(1-p)e^u}{p + (1 - p)e^u}
+\end{align*} %]]></script>
+
+<p>and that</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\begin{align*}
+    \varphi''(u) &= \frac{p(1-p)e^u}{(p + (1 - p)e^u)^2}.
+\end{align*} %]]></script>
+
+<p>Notice that both <script type="math/tex">\varphi'</script> and <script type="math/tex">\varphi''</script> are defined everywhere. This means that <script type="math/tex">\varphi</script> is twice-differentiable, and therefore, by Taylor’s Theorem, using the Lagrange Form for the remainder, we have that for all <script type="math/tex">u\in\mathbb{R}</script>, there exists <script type="math/tex">\xi\in\mathbb{R}</script> such that</p>
+
+<script type="math/tex; mode=display">\begin{equation}
+    \varphi(u) = \varphi(0) + \varphi'(0)u + \frac{1}{2}\varphi''(\xi)u^2.\quad\textbf{(3)}
+\end{equation}</script>
+
+<p>From above, we have that <script type="math/tex">\varphi(0) = 0</script> and that <script type="math/tex">\varphi'(0) = 0</script>. We will now use calculus to find a bound on <script type="math/tex">\varphi''(\xi)</script>. We have that</p>
+
+<script type="math/tex; mode=display">\begin{align*}
+    \varphi'''(u) = \frac{p(1 - p)e^u(p - (1 - p)e^u)}{(p + (1 - p)e^u)^3}.
+\end{align*}</script>
+
+<p>Notice that <script type="math/tex">\varphi'''(u) = 0</script> at only <script type="math/tex">u = \log\left(\frac{p}{1 - p}\right)</script>, and that it is negative to the right of that <script type="math/tex">u</script> value and positive to the left of it. This shows that <script type="math/tex">\varphi''(u)</script> attains its maximum value at <script type="math/tex">u = \log\left(\frac{p}{1 - p}\right)</script>. This gives us that for all <script type="math/tex">\xi\in \mathbb{R}</script>, it is the case that</p>
+
+<script type="math/tex; mode=display">\begin{align*}
+    \varphi''(\xi) \leq \varphi''\left(\log\left(\frac{p}{1 - p}\right)\right) = \frac{1}{4}.
+\end{align*}</script>
+
+<p>Applying this inequality to statement <script type="math/tex">\textbf{(3)}</script>, we have that for all <script type="math/tex">u\in \mathbb{R}</script>, it is the case that</p>
+
+<script type="math/tex; mode=display">\begin{align*}
+    \varphi(u)\leq u^2/8.
+\end{align*}</script>
+
+<p>But using the definition of <script type="math/tex">\varphi(u)</script> at <script type="math/tex">u=(b-a)s</script>, we have</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\begin{align*}
+    &\log\left(\frac{b}{b - a}e^{sb} - \frac{a}{b - a}e^{sa}\right)\leq s^2(b-a)^2/8\\
+    \Longrightarrow\quad &\frac{b}{b - a}e^{sb} - \frac{a}{b - a}e^{sa}\leq e^{s^2(b-a)^2/8}.
+\end{align*} %]]></script>
+
+<p>Combining this with inequality <script type="math/tex">\textbf{(2)}</script>, we finally have</p>
+
+<script type="math/tex; mode=display">\begin{align*}
+    \mathbb{E}[e^{sV}] \leq e^{s^2(b-a)^2/8}.
+\end{align*}</script>
+
+<p>Since <script type="math/tex">s</script> was arbitrary, we are done.</p>
+
+<hr />
+
+<p>Finally, we have Hoeffding’s Inequality:</p>
+
+<hr />
+
+<p><strong>Hoeffding’s Inequality:</strong> Let <script type="math/tex">Z_1, \dots, Z_n</script> be independent random variables on <script type="math/tex">\mathbb{R}</script> such that <script type="math/tex">a_i\leq Z_i\leq b_i</script> with probability one, where <script type="math/tex">% <![CDATA[
+a_i < b_i %]]></script>. If <script type="math/tex">S_n=\sum_{i=1}^n Z_i</script>, then for all <script type="math/tex">t> 0</script>, it is the case that</p>
+
+<script type="math/tex; mode=display">\begin{align*}
+    \textrm{P}(S_n-\mathbb{E}[S_n]\geq t)\leq e^{-2t^2/\sum(b_i-a_i)^2}
+\end{align*}</script>
+
+<p>and</p>
+
+<script type="math/tex; mode=display">\begin{align*}
+    \textrm{P}(S_n-\mathbb{E}[S_n]\leq -t)\leq e^{-2t^2/\sum(b_i-a_i)^2}.
+\end{align*}</script>
+
+<p>Note that these two bounds combine to give us</p>
+
+<script type="math/tex; mode=display">\begin{align*}
+    \textrm{P}(\vert S_n-\mathbb{E}[S_n]\vert\geq t)\leq 2e^{-2t^2/\sum(b_i-a_i)^2}.
+\end{align*}</script>
+
+<p><em>Proof:</em> Applying Chernoff’s Bounding Method to the random variable <script type="math/tex">S_n - \mathbb{E}[S_n]</script>, we obtain</p>
+
+<script type="math/tex; mode=display">\begin{align*}
+    \textrm{P}(S_n-\mathbb{E}[S_n]\geq t)\leq \inf_{s > 0}e^{-st}\mathbb{E}\left[e^{s(S_n - \mathbb{E}[S_n])}\right]
+\end{align*}</script>
+
+<p>By the fact that <script type="math/tex">Z_1, \dots, Z_n</script> are independent and Hoeffding’s Lemma, we have</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\begin{align*}
+    \mathbb{E}\left[e^{s(S_n - \mathbb{E}[S_n])}\right] &= \mathbb{E}\left[e^{s\sum_{i=1}^n \left(Z_i - \mathbb{E}[Z_i]\right)}\right]\\
+    &= \mathbb{E}\left[\prod_{i=1}^n e^{s(Z_i - \mathbb{E}[Z_i])}\right]\\
+    &= \prod_{i=1}^n \mathbb{E}\left[e^{s(Z_i - \mathbb{E}[Z_i])}\right]\\
+    &\leq \prod_{i=1}^n e^{s^2(b_i-a_i)^2/8}\\
+    &= e^{(s^2/8)\sum_{i=1}^n(b_i - a_i)^2}.
+\end{align*} %]]></script>
+
+<p>Combining this with our inequality from above, we have</p>
+
+<script type="math/tex; mode=display">\begin{align*}
+    \textrm{P}(S_n-\mathbb{E}[S_n]\geq t)\leq \inf_{s > 0}e^{-st+(s^2/8)\sum_{i=1}^n (b_i-a_i)^2}.
+\end{align*}</script>
+
+<p>Since <script type="math/tex">s\rightarrow -st + (s^2/8)\sum_{i=1}^n(b_i-a_i)^2</script> is a parabola, we know that it attains its minimum at <script type="math/tex">s=\frac{4t}{\sum_{i=1}^n(b_i-a_i)^2}</script>. Therefore, we have</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\begin{align*}
+    \textrm{P}(S_n-\mathbb{E}[S_n]\geq t)&\leq \inf_{s > 0}e^{-st+(s^2/8)\sum_{i=1}^n (b_i-a_i)^2}\\
+    &= e^{-\left(\frac{4t}{\sum_{i=1}^n(b_i-a_i)^2}\right)t+\frac{2t^2}{\left(\sum_{i=1}^n(b_i-a_i)^2\right)^2}\sum_{i=1}^n (b_i-a_i)^2}\\
+    &= e^{-2t^2/\sum_{i=1}^n(b_i-a_i)^2},
+\end{align*} %]]></script>
+
+<p>the first bound. Having proven the first bound, the second bound can be proven by simply applying the first bound to the random variables <script type="math/tex">-Z_1, \dots, -Z_n</script>.</p>
+
+<hr />
+
+<p>Okay, though it took a while, we have now proven Hoeffding’s Inequality. Now how do we apply it to our context? Recall that we are searching for small <script type="math/tex">\epsilon</script> satisfying the condition that for all <script type="math/tex">p, s\in P\times S</script>, it is the case that</p>
+
+<script type="math/tex; mode=display">\begin{equation*}
+    P(\vert u_p(s; \mathscr{D}) - \hat{u}_p(s; X)\vert > \epsilon) \leq \frac{\delta}{\vert P\times S\vert}.
+\end{equation*}</script>
+
+<p>Let <script type="math/tex">X_1, \dots, X_m</script> denote the random variables representing each sample in <script type="math/tex">X</script>. By applying the definitions of <script type="math/tex">u</script> and <script type="math/tex">\hat{u}</script>, we have that the above condition is equivalent to requiring that for all <script type="math/tex">p, s\in P\times S</script>, it be true that</p>
+
+<script type="math/tex; mode=display">\begin{equation*}
+    P\left(\left\vert\mathbb{E}\left[\frac{1}{m}\sum_{i=1}^m u_p(s, X_i)\right] - \frac{1}{m}\sum_{i=1}^m u_p(s, X_i)\right\vert > \epsilon\right) \leq \frac{\delta}{\vert P\times S\vert}
+\end{equation*}</script>
+
+<p>or, after multiplying both sides of the inner inequality by <script type="math/tex">m</script>, that</p>
+
+<script type="math/tex; mode=display">\begin{equation*}
+    P\left(\left\vert\mathbb{E}\left[\sum_{i=1}^m u_p(s, X_i)\right] - \sum_{i=1}^m u_p(s, X_i)\right\vert > m\epsilon\right) \leq \frac{\delta}{\vert P\times S\vert}.
+\end{equation*}</script>
+
+<p>Assume that the utility function <script type="math/tex">u</script> is bounded, and let <script type="math/tex">c>0</script> be such that all possible utilities lie in the interval <script type="math/tex">[-c/2, c/2]</script>. Note that this is a reasonable assumption, as in the real world, there is almost always a practical limit on the utility that can be derived from an action or state. For example, if the utility for a game involving average citizens is based on the amount of money they are able to make, it might be completely reasonable to set <script type="math/tex">c/2</script> to be a trillion US dollars.</p>
+
+<p>For all <script type="math/tex">p,s \in P\times S</script>, applying Hoeffding’s Inequality to the random variables <script type="math/tex">u_p(s, X_1), \dots, u_p(s, X_m)</script> gives us</p>
+
+<script type="math/tex; mode=display">\begin{equation*}
+    P\left(\left\vert\mathbb{E}\left[\sum_{i=1}^m u_p(s, X_i)\right] - \sum_{i=1}^m u_p(s, X_i)\right\vert > m\epsilon\right) \leq 2e^{-2m^2\epsilon^2/\sum_{i=1}^m(c/2 - (-c/2))^2} = 2e^{-\frac{2m\epsilon^2}{c^2}}
+\end{equation*}</script>
+
+<p>Now we can restrict the right-hand side of the inequality from above to be less than or equal to <script type="math/tex">\frac{\delta}{\vert P\times S\vert}</script> and solve for <script type="math/tex">\epsilon</script>. We have</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\begin{align*}
+    & & 2e^{-\frac{2m\epsilon^2}{c^2}} &\leq \frac{\delta}{\vert P\times S\vert}\\
+    &\Longrightarrow& \epsilon &\geq \sqrt{\frac{-c^2}{2m}\log{\frac{\delta}{2\vert P\times S\vert}}}\\
+    &\Longrightarrow& \epsilon &\geq c\sqrt{\frac{\log\left(2\vert P\times S\vert / \delta\right)}{2m}}.
+\end{align*} %]]></script>
+
+<p>Therefore, we have shown that for all <script type="math/tex">p, s\in P\times S</script>, it is the case that</p>
+
+<script type="math/tex; mode=display">\begin{equation*}
+    P\left(\vert u_p(s; \mathscr{D}) - \hat{u}_p(s; X)\vert > c\sqrt{\frac{\log\left(2\vert P\times S\vert / \delta\right)}{2m}}\right) \leq \frac{\delta}{\vert P\times S\vert},
+\end{equation*}</script>
+
+<p>and hence, we have that</p>
+
+<script type="math/tex; mode=display">\begin{equation*}
+    \boxed{\textrm{P}\left(d_\infty(\Gamma_X, \Gamma_\mathscr{D})\leq c\sqrt{\frac{\log\left(2\vert P\times S\vert / \delta\right)}{2m}}\right)\geq 1 - \delta.}
+\end{equation*}</script>
+
+<p>We have succeeded in finding PAC-style guarantees on <script type="math/tex">d_\infty(\Gamma_X, \Gamma_\mathscr{D})</script> with bounds that are directly proportional to <script type="math/tex">\frac{1}{\sqrt{m}}</script>! This dependence on the sample size makes sense, as we expect empirical normal-form games to better approximate expected normal-form games as their sample sizes increase. One problem with these guarantees derived using Hoeffding’s Inequality and the union bound is that the union bound produces unnecessarily loose bounds. This is seen in the dependence of the bounds on <script type="math/tex">\sqrt{\log(\vert P\times S\vert)}</script>. Because of this dependence, these guarantees don’t scale very well to larger games. Approach 2 of the paper aims to avoid this dependence.</p>
+
+<h1 id="approach-2---rademacher-averages">Approach 2 - Rademacher Averages</h1>
+
+<p>Rather than finding guarantees on the deviations of individual utilities and then applying the union bound, the second approach introduced by the paper aims to use a concept called <strong>Rademacher Averages</strong> to directly form guarantees on the maximum deviation between utilities. We will now state the definitions of two kinds of Rademacher Averages as they have been stated in the paper.</p>
+
+<p>A Rademacher distribution is a uniform distribution over the set <script type="math/tex">\{-1, 1\}</script>. Let <script type="math/tex">\sigma\sim \textrm{Rademacher}^m</script> and for cleaner expressions, let <script type="math/tex">\bar{I}</script> denote <script type="math/tex">P\times S</script>. We define:</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\begin{align*}&(1)& &\textbf{1-Draw Empirical Rademacher Average }\textrm{(1-ERA): }\\
+& & &\hat{\mathfrak{R}}_m^1(\Gamma, \bar{I}, X, \sigma):= \sup_{p, s\in \bar{I}}\left\vert\frac{1}{m}\sum_{j=1}^m\sigma_ju_p(s, x_j)\right\vert\\
+&(2)& &\textbf{Rademacher Average }\textrm{(RA): }\\
+& & &\mathfrak{R}_m(\Gamma, \bar{I}, \mathscr{D}):= \mathbb{E}_{X, \sigma}\left[\hat{\mathfrak{R}}_m^1(\Gamma, \bar{I}, X, \sigma)\right]
+\end{align*} %]]></script>
+
+<p>Note that in the paper, these definitions and the following theorems are generalized for all <script type="math/tex">I\subseteq \bar{I}</script>, but since I feel that the reason for doing so isn’t apparent at this point in the Paper Walkthrough, I will leave the discussion of that for later.</p>
+
+<p>In order to see how these Rademacher Averages can be applied to our context, we will first introduce a few theorems/lemmas, beginning with <strong>Lemma A.1</strong> whose proof will mimic that of the same lemma from the paper.</p>
+
+<hr />
+
+<p><strong>Lemma A.1:</strong> We have</p>
+
+<script type="math/tex; mode=display">\begin{equation*}
+    \mathbb{E}_{X}\left[\sup_{p, s\in \bar{I}}\left\vert u_p(s; \mathscr{D}) - \hat{u}_p(s; X)\right\vert\right]\leq 2\mathfrak{R}_m(\Gamma, \bar{I}, \mathscr{D}).
+\end{equation*}</script>
+
+<p><em>Proof:</em> This proof will use a technique known as <strong>Symmetrization</strong>. In order to use this technique, we define a second sample random variable <script type="math/tex">X'=(x'_1, \dots, x'_m)\sim \mathscr{D}^m</script>. By the definition of <script type="math/tex">u</script> and <script type="math/tex">\hat{u}</script>, we have that</p>
+
+<script type="math/tex; mode=display">\begin{equation*}
+    \mathbb{E}_{X}\left[\sup_{p, s\in \bar{I}}\left\vert u_p(s; \mathscr{D}) - \hat{u}_p(s; X)\right\vert\right] = \mathbb{E}_{X}\left[\sup_{p, s\in \bar{I}}\left\vert \mathbb{E}_{X'}\left[\frac{1}{m}\sum_{j=1}^m u_p(s, x'_j)\right] - \frac{1}{m}\sum_{j=1}^m u_p(s, x_j)\right\vert\right].
+\end{equation*}</script>
+
+<p>By Jensen’s Inequality and Linearity of Expectation, we have</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\begin{align*}
+    \mathbb{E}_{X}&\left[\sup_{p, s\in \bar{I}}\left\vert \mathbb{E}_{X'}\left[\frac{1}{m}\sum_{j=1}^m u_p(s, x'_j)\right] - \frac{1}{m}\sum_{j=1}^m u_p(s, x_j)\right\vert\right]\\
+    &\leq \mathbb{E}_{X, X'}\left[\sup_{p, s\in \bar{I}}\left\vert \frac{1}{m}\sum_{j=1}^m u_p(s, x'_j) - \frac{1}{m}\sum_{j=1}^m u_p(s, x_j)\right\vert\right]\\
+    &= \mathbb{E}_{X, X'}\left[\sup_{p, s\in \bar{I}}\left\vert \frac{1}{m}\sum_{j=1}^m \left(u_p(s, x'_j) - u_p(s, x_j)\right)\right\vert\right]
+\end{align*} %]]></script>
+
+<p>Since <script type="math/tex">x_1, \dots, x_m, x'_1, \dots x'_m</script> are all independently and identically distributed random variables, for each <script type="math/tex">p, s\in \bar{I}</script> and index <script type="math/tex">j</script>, the distribution of <script type="math/tex">u_p(s, x'_j) - u_p(s, x_j)</script> is unchanged after being multiplied by a Rademacher variable. This gives us</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\begin{align*}
+    \mathbb{E}_{X, X'}&\left[\sup_{p, s\in \bar{I}}\left\vert \frac{1}{m}\sum_{j=1}^m \left(u_p(s, x'_j) - u_p(s, x_j)\right)\right\vert\right]\\
+    &= \mathbb{E}_{X, X', \sigma}\left[\sup_{p, s\in \bar{I}}\left\vert \frac{1}{m}\sum_{j=1}^m \sigma_j\left(u_p(s, x'_j) - u_p(s, x_j)\right)\right\vert\right].
+\end{align*} %]]></script>
+
+<p>By Triangle Inquality and Linearity of Expectation, we have</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\begin{align*}
+    \mathbb{E}_{X, X', \sigma}&\left[\sup_{p, s\in \bar{I}}\left\vert \frac{1}{m}\sum_{j=1}^m \sigma_j\left(u_p(s, x'_j) - u_p(s, x_j)\right)\right\vert\right]\\
+    &\leq \mathbb{E}_{X', \sigma}\left[\sup_{p, s\in \bar{I}}\left\vert \frac{1}{m}\sum_{j=1}^m \sigma_ju_p(s, x'_j)\right\vert\right] + \mathbb{E}_{X, \sigma}\left[\sup_{p, s\in \bar{I}}\left\vert -\frac{1}{m}\sum_{j=1}^m \sigma_ju_p(s, x_j)\right\vert\right]\\
+    &= 2\mathfrak{R}_m(\Gamma, \bar{I}, \mathscr{D})
+\end{align*} %]]></script>
+
+<hr />
+
+<p>Next, we introduce a theorem known as <strong>McDiamard’s Bounded Difference Inequality</strong>. The proof of this theorem is beyond the scope of this Paper Walkthrough, but several proofs exist online. Notice, however, that McDiarmard’s Bounded Difference Inequality is a generalization of Hoeffding’s Inequality where <script type="math/tex">S_n</script> is replaced with an arbitrary function of the provided independent random variables that satisfies a “bounded difference condition”.</p>
+
+<hr />
+
+<p><strong>McDiamard’s Bounded Difference Inequality</strong> [4]<strong>:</strong> Let <script type="math/tex">X_1, \dots, X_l</script> be independent random variables and let <script type="math/tex">h(x_1, \dots, x_l)</script> be a function s.t. a change in variable <script type="math/tex">x_i</script> can change the value of the function by no more than <script type="math/tex">c_i</script>:</p>
+
+<script type="math/tex; mode=display">\begin{equation*}
+    \sup_{x_1, \dots, x_l, x'_i}\vert h(x_1, \dots, x_i, \dots, x_l) - h(x_1, \dots, x'_i, \dots, x_l)\vert \leq c_i.\quad\textrm{(Bounded Difference Condition)}
+\end{equation*}</script>
+
+<p>Then, for any <script type="math/tex">\epsilon > 0</script>, we have</p>
+
+<script type="math/tex; mode=display">\begin{equation*}
+    \textrm{P}(h(X_1, \dots, X_l) - \mathbb{E}\left[h(X_1, \dots, X_l)\right] > \epsilon) \leq \textrm{exp}\left(-2\epsilon^2/\sum_{i=1}^l c_i^2\right).
+\end{equation*}</script>
+
+<hr />
+
+<p>Combining Lemma A.1 and McDiamard’s Bounded Difference Inequality, we can now use Rademacher Averages to derive the guarantees we are looking for. Let <script type="math/tex">X_1, \dots, X_m</script> denote the random variables representing each sample in <script type="math/tex">X</script>, and let <script type="math/tex">\sigma_1, \dots, \sigma_m</script> denote each component random variable of <script type="math/tex">\sigma</script>. First notice that by the Linearity of Expectation, we have that</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\begin{align*}
+    & & &\mathbb{E}_{X}\left[\sup_{p, s\in \bar{I}}\left\vert u_p(s; \mathscr{D}) - \hat{u}_p(s; X)\right\vert\right] - 2\mathfrak{R}_m(\Gamma, \bar{I}, \mathscr{D})\\
+    &= & &\mathbb{E}_{X}\left[\sup_{p, s\in \bar{I}}\left\vert u_p(s; \mathscr{D}) - \hat{u}_p(s; X)\right\vert\right] - 2\mathbb{E}_{X, \sigma}\left[\hat{\mathfrak{R}}_m^1(\Gamma, \bar{I}, X, \sigma)\right]\\
+    &= & &\mathbb{E}_{X, \sigma}\left[\sup_{p, s\in \bar{I}}\left\vert u_p(s; \mathscr{D}) - \hat{u}_p(s; X)\right\vert - 2\hat{\mathfrak{R}}_m^1(\Gamma, \bar{I}, X, \sigma)\right]\\
+    &= & &\mathbb{E}_{X_1, \dots, X_m,\\ \sigma_1, \dots, \sigma_m}\left[\sup_{p, s\in \bar{I}}\left\vert u_p(s; \mathscr{D}) - \frac{1}{m}\sum_{j=1}^m u_p(s, X_j)\right\vert - 2\sup_{p, s\in \bar{I}}\left\vert\frac{1}{m}\sum_{j=1}^m\sigma_ju_p(s, X_j)\right\vert\right]\quad\textbf{(4)}
+\end{align*} %]]></script>
+
+<p>Consider the function <script type="math/tex">h</script> defined by</p>
+
+<script type="math/tex; mode=display">h(X_1,\dots, X_m, \sigma_1, \dots, \sigma_m):= \sup_{p, s\in \bar{I}}\left\vert u_p(s; \mathscr{D}) - \frac{1}{m}\sum_{j=1}^m u_p(s, X_j)\right\vert - 2\sup_{p, s\in \bar{I}}\left\vert\frac{1}{m}\sum_{j=1}^m\sigma_ju_p(s, X_j)\right\vert</script>
+
+<p>Does <script type="math/tex">h</script> satisfy the bounded difference condition? As we did in the discussion of Hoeffding’s Inequality, we will assume that all utilities are bounded to some interval <script type="math/tex">[-c/2, c/2]</script>. If, for some index <script type="math/tex">J</script>, the input <script type="math/tex">X_J</script> is modified, we have that each of the <script type="math/tex">u_p(s, X_J)</script> terms will change by at most <script type="math/tex">c</script>, and as a result, the values of <script type="math/tex">\sup_{p, s\in \bar{I}}\left\vert u_p(s; \mathscr{D}) - \frac{1}{m}\sum_{j=1}^m u_p(s, X_j)\right\vert</script> and <script type="math/tex">\sup_{p, s\in \bar{I}}\left\vert\frac{1}{m}\sum_{j=1}^m\sigma_ju_p(s, X_j)\right\vert</script> will both change by at most <script type="math/tex">c/m</script>. This means that for a change in one of the <script type="math/tex">X_j</script>’s, the output of <script type="math/tex">h</script> can change by at most <script type="math/tex">3c/m</script>. If, for some index <script type="math/tex">J'</script>, the input <script type="math/tex">\sigma_{J'}</script> is modified, we have that each of the <script type="math/tex">\sigma_{J'}u_p(s, X_{J'})</script> terms will change by at most <script type="math/tex">c</script>, and as a result, the term <script type="math/tex">\sup_{p, s\in \bar{I}}\left\vert\frac{1}{m}\sum_{j=1}^m\sigma_ju_p(s, X_j)\right\vert</script> will both change by at most <script type="math/tex">c/m</script>. This means that for a change in one of the <script type="math/tex">\sigma_j</script>’s, the output of <script type="math/tex">h</script> can change by at most <script type="math/tex">2c/m</script>.</p>
+
+<p>Therefore, we have shown that <script type="math/tex">h</script> does satisfy the bounded difference condition, with <script type="math/tex">c_i = 3c/m</script> for each <script type="math/tex">i</script> corresponding to one of the <script type="math/tex">X_j</script>’s and <script type="math/tex">c_i = 2c/m</script> for each <script type="math/tex">i</script> corresponding to one of the <script type="math/tex">\sigma_j</script>’s.</p>
+
+<p>From this point onwards, we will use <script type="math/tex">h(X, \sigma)</script> to denote <script type="math/tex">h(X_1, \dots, X_m, \sigma_1, \dots \sigma_m)</script>. Notice that</p>
+
+<script type="math/tex; mode=display">h(X, \sigma) = \sup_{p, s\in \bar{I}}\left\vert u_p(s; \mathscr{D}) - \hat{u}_p(s; X)\right\vert - 2\hat{\mathfrak{R}}_m^1(\Gamma, \bar{I}, X, \sigma)</script>
+
+<p>and that by <script type="math/tex">\textbf{(4)}</script>, we have that</p>
+
+<script type="math/tex; mode=display">\mathbb{E}_{X, \sigma}\left[h(X, \sigma)\right] = \mathbb{E}_{X}\left[\sup_{p, s\in \bar{I}}\left\vert u_p(s; \mathscr{D}) - \hat{u}_p(s; X)\right\vert\right] - 2\mathfrak{R}_m(\Gamma, \bar{I}, \mathscr{D})</script>
+
+<p>We can now apply McDiamard’s Inequality to the function <script type="math/tex">h</script>, giving us the following result</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\begin{align*}
+    \textrm{P}(h(X, \sigma) - \mathbb{E}_{X, \sigma}\left[h(X, \sigma)\right] > \epsilon) &\leq \textrm{exp}\left(-2\epsilon^2/\sum_i c_i^2\right)\\
+    &= \textrm{exp}\left(-2\epsilon^2/\left(m\cdot\left(\frac{3c}{m}\right)^2 + m\cdot\left(\frac{2c}{m}\right)^2\right)\right)\\
+    &= \textrm{exp}\left(\frac{-2m\epsilon^2}{13c^2}\right)
+\end{align*} %]]></script>
+
+<p>Using the complement rule of probability, we have</p>
+
+<script type="math/tex; mode=display">\textrm{P}(h(X, \sigma) - \mathbb{E}_{X, \sigma}\left[h(X, \sigma)\right] \leq \epsilon) \geq  1 - \textrm{exp}\left(\frac{-2m\epsilon^2}{13c^2}\right)</script>
+
+<p>Since Lemma A.1 implies that <script type="math/tex">\mathbb{E}_{X}\left[\sup_{p, s\in \bar{I}}\left\vert u_p(s; \mathscr{D}) - \hat{u}_p(s; X)\right\vert\right] - 2\mathfrak{R}_m(\Gamma, \bar{I}, \mathscr{D})\leq 0</script>, we have that</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\begin{align*}
+    & & h(X, \sigma) - \mathbb{E}_{X, \sigma}\left[h(X, \sigma)\right] &\leq \epsilon\\
+    &\Longrightarrow & \left[\sup_{p, s\in \bar{I}}\left\vert u_p(s; \mathscr{D}) - \hat{u}_p(s; X)\right\vert - 2\hat{\mathfrak{R}}_m^1(\Gamma, \bar{I}, X, \sigma)\right] - \quad\quad\quad\quad\quad &\\
+    & & \left[\mathbb{E}_{X}\left[\sup_{p, s\in \bar{I}}\left\vert u_p(s; \mathscr{D}) - \hat{u}_p(s; X)\right\vert\right] - 2\mathfrak{R}_m(\Gamma, \bar{I}, \mathscr{D})\right] &\leq \epsilon\\
+    &\Longrightarrow & \sup_{p, s\in \bar{I}}\left\vert u_p(s; \mathscr{D}) - \hat{u}_p(s; X)\right\vert - 2\hat{\mathfrak{R}}_m^1(\Gamma, \bar{I}, X, \sigma) & \leq \epsilon\\
+    &\Longrightarrow & \sup_{p, s\in \bar{I}}\left\vert u_p(s; \mathscr{D}) - \hat{u}_p(s; X)\right\vert &\leq 2\hat{\mathfrak{R}}_m^1(\Gamma, \bar{I}, X, \sigma) + \epsilon\\
+    &\Longrightarrow & d_\infty(\Gamma_X, \Gamma_\mathscr{D}) &\leq 2\hat{\mathfrak{R}}_m^1(\Gamma, \bar{I}, X, \sigma) + \epsilon.
+\end{align*} %]]></script>
+
+<p>Therefore, we now have that</p>
+
+<script type="math/tex; mode=display">\textrm{P}(d_\infty(\Gamma_X, \Gamma_\mathscr{D}) \leq 2\hat{\mathfrak{R}}_m^1(\Gamma, \bar{I}, X, \sigma) + \epsilon) \geq  1 - \textrm{exp}\left(\frac{-2m\epsilon^2}{13c^2}\right)</script>
+
+<p>Setting the right side of the inequality to be greater than or equal to <script type="math/tex">1-\delta</script> and then solving for <script type="math/tex">\epsilon</script> gives us</p>
+
+<script type="math/tex; mode=display">\epsilon \geq \sqrt{13}c\sqrt{\frac{\ln(1/\delta)}{2m}}.</script>
+
+<p>Therefore, we have succeeded in using Rademacher Averages to form this second PAC-style guarantee on <script type="math/tex">d_\infty(\Gamma_X, \Gamma_\mathscr{D})</script>:</p>
+
+<script type="math/tex; mode=display">\boxed{\textrm{P}\left(d_\infty(\Gamma_X, \Gamma_\mathscr{D}) \leq 2\hat{\mathfrak{R}}_m^1(\Gamma, \bar{I}, X, \sigma) + \sqrt{13}c\sqrt{\frac{\ln(1/\delta)}{2m}}\right) \geq  1 - \delta.}</script>
+
+<p>The bound derived here is slightly looser than the bound derived in the paper. In the paper, the <script type="math/tex">\sqrt{13}</script> constant is replaced with a <script type="math/tex">3</script>. I am not entirely sure how the slightly tighter bound in the paper was derived, but I will be emailing Dr. Greenwald and asking about it. If I get an answer, I’ll update this part of the Paper Walkthrough. For analysis purposes, however, this bound is very similar to the one in the paper.</p>
+
+<p>Unlike the bounds derived from Hoeffding’s Inequality, these bounds have no explicit dependence on the number of elements in <script type="math/tex">\bar{I}=P\times S</script>. This means that this guarantee can scale well to arbitrarily large games. These bounds are, however, data-dependent and require a sample to be drawn from the distribution. Unlike the bounds derived from Hoeffding’s Inequality, these bounds cannot be calculated <em>a priori</em>.</p>
+
+<h1 id="conclusion">Conclusion</h1>
+
+<p>We have derived PAC-style guarantees on <script type="math/tex">d_\infty(\Gamma_X, \Gamma_\mathscr{D})</script> using two approaches. The first approach based on Hoeffding’s Inequality produces bounds that have a factor that is <script type="math/tex">O(\sqrt{\log(\vert P\times S\vert)})</script>, making the resulting guarantees not scale well to large games. The second approach resolves this issue and has no such factor, but requires a sample to first be drawn to produce guarantees for that specific sample. In part 3 of this Paper Walkthrough, we will implement two different algorithms discussed in the paper for using empirical normal-form games to approximate expected normal-form games, and then use various experiments to analyze how our two different guarantees compare in various different contexts.</p>
+
+<h1 id="references">References</h1>
+
+<p>[1] Viqueira, Enrique Areyan, et al. “Learning Equilibria of Simulation-Based Games.” ArXiv:1905.13379 [Cs], May 2019. arXiv.org, <a href="http://arxiv.org/abs/1905.13379">http://arxiv.org/abs/1905.13379</a>.</p>
+
+<p>[2] E. Weisstein, “Bonferroni Inequalities,” Wolfram MathWorld. Available: <a href="https://mathworld.wolfram.com/BonferroniInequalities.html">https://mathworld.wolfram.com/BonferroniInequalities.html</a>. [Accessed: 02-Jul-2021].</p>
+
+<p>[3] C. Scott and A. Zimmer, “Hoeffding’s Inequality,” EECS 598: Statistical Learning Theory, Winter 2014. Available: <a href="http://web.eecs.umich.edu/~cscott/past_courses/eecs598w14/notes/03_hoeffding.pdf">http://web.eecs.umich.edu/~cscott/past_courses/eecs598w14/notes/03_hoeffding.pdf</a>. [Accessed: 02-Jul-2021].</p>
+
+<p>[4] M. Riondato, “Rademacher Averages: Theory and Practice,” Two Sigma. Available: <a href="https://www.twosigma.com/wp-content/uploads/Riondato_-_RademacherTheoryPractice_-_Dagstuhl_-_Slides.pdf">https://www.twosigma.com/wp-content/uploads/Riondato_-_RademacherTheoryPractice_-_Dagstuhl_-_Slides.pdf</a>. [Accessed: 04-Jul-2021].</p>
+:ET

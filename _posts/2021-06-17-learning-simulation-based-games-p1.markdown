@@ -12,7 +12,7 @@ In this specific Paper Walkthrough, I will be conducting a very thorough look at
 
 ### Prerequisites
 - A basic understanding of Game Theory concepts (Normal-form games, pure and mixed strategy sets, regret, Nash equilibriums, ϵ-Nash equilibriums, etc.)
-- Solid grasp of introductory probability / statistics
+- Solid grasp of introductory probability / statistics and introductory calculus
 - Familiarity with the notation used in this paper (Read section 2.1)
 
 With that out of the way, let's get into the paper!
@@ -151,7 +151,7 @@ The above Theorem tells us that if we have an expected normal-form game $$\Gamma
 
 Having settled on a metric function to measure the closeness of similarly structured games, we can now restate our earlier question. For a given sample $$X\sim \mathscr{D}^m$$, how closely -- using $$d_\infty$$ as the metric for closeness -- does an empirical normal-form game $$\Gamma_X$$ approximate its corresponding expected normal-form game $$\Gamma_\mathscr{D}$$? Now, we are interested in this question in contexts where the only access to $$\mathscr{D}$$ is through sampling. As a result, a concrete value for $$d_\infty(\Gamma_X, \Gamma_\mathscr{D})$$, or even an upper bound on it, cannot be found. For example, even if a certain utility is 10 for 1000 sampled conditions, it is still possible that those sample conditions were all outliers, and the true expected value of that utility could be any other value. Though we can't find such upper bounds that always apply, we may be able to find upper bounds that hold with high probability. This kind of approach is known as **Probably Approximately Correct (PAC) Learning**.
 
-Formally, after applying the PAC approach to our question, for any given error-rate $$\delta\in (0, 1)$$, we aim to find a corresponding $$\epsilon>0$$ such that
+Formally, after applying the PAC approach to our question, for any given error-rate $$\delta\in (0, 1)$$, we aim to find a corresponding $$\epsilon>0$$, with smaller $$\epsilon$$ being preferred to larger ones, such that
 
 $$
 \begin{equation*}
@@ -159,7 +159,7 @@ $$
 \end{equation*}
 $$
 
-This is a productive direction to take our initial question, as it aims not only to find bounds on $$d_\infty(\Gamma_X, \Gamma_\mathscr{D})$$ that hold with high probability but also to use Theorem 2.6 from above to make guarantees about the strength of the epsilon-equilibria of $$\Gamma_X$$ when applied to $$\Gamma_\mathscr{D}$$. In Part 2 of this Paper Walkthrough, we will conduct an in-depth look into the methods used by the paper for finding $$\epsilon$$ and the theory behind each approach.
+This is a productive direction to take our initial question, as it aims not only to find strong bounds on $$d_\infty(\Gamma_X, \Gamma_\mathscr{D})$$ that hold with high probability but also to use Theorem 2.6 from above to make guarantees about the strength of the epsilon-equilibria of $$\Gamma_X$$ when applied to $$\Gamma_\mathscr{D}$$. In Part 2 of this Paper Walkthrough, we will conduct an in-depth look into the methods used by the paper for finding small $$\epsilon$$ and the theory behind each approach.
 
 # References
 
