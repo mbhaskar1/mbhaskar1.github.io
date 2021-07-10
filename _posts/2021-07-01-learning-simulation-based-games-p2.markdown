@@ -434,11 +434,11 @@ $$
 
 ***
 
-Next, we introduce a theorem known as **McDiamard's Bounded Difference Inequality**. The proof of this theorem is beyond the scope of this Paper Walkthrough, but several proofs exist online. Notice, however, that McDiarmard's Bounded Difference Inequality is a generalization of Hoeffding's Inequality where $$S_n$$ is replaced with an arbitrary function of the provided independent random variables that satisfies a "bounded difference condition".
+Next, we introduce a theorem known as **McDiarmid's Bounded Difference Inequality**. The proof of this theorem is beyond the scope of this Paper Walkthrough, but several proofs exist online. Notice, however, that McDiarmid's Bounded Difference Inequality is a generalization of Hoeffding's Inequality where $$S_n$$ is replaced with an arbitrary function of the provided independent random variables that satisfies a "bounded difference condition".
 
 ***
 
-**McDiamard's Bounded Difference Inequality** [4]**:** Let $$X_1, \dots, X_l$$ be independent random variables and let $$h(x_1, \dots, x_l)$$ be a function s.t. a change in variable $$x_i$$ can change the value of the function by no more than $$c_i$$:
+**McDiarmid's Bounded Difference Inequality** [4]**:** Let $$X_1, \dots, X_l$$ be independent random variables and let $$h(x_1, \dots, x_l)$$ be a function s.t. a change in variable $$x_i$$ can change the value of the function by no more than $$c_i$$:
 
 $$
 \begin{equation*}
@@ -456,7 +456,7 @@ $$
 
 ***
 
-Combining Lemma A.1 and McDiamard's Bounded Difference Inequality, we can now use Rademacher Averages to derive the guarantees we are looking for. Let $$X_1, \dots, X_m$$ denote the random variables representing each sample in $$X$$, and let $$\sigma_1, \dots, \sigma_m$$ denote each component random variable of $$\sigma$$. First notice that by the Linearity of Expectation, we have that
+Combining Lemma A.1 and McDiarmid's Bounded Difference Inequality, we can now use Rademacher Averages to derive the guarantees we are looking for. Let $$X_1, \dots, X_m$$ denote the random variables representing each sample in $$X$$, and let $$\sigma_1, \dots, \sigma_m$$ denote each component random variable of $$\sigma$$. First notice that by the Linearity of Expectation, we have that
 
 $$
 \begin{align*}
@@ -483,7 +483,7 @@ and that by $$\textbf{(4)}$$, we have that
 
 $$\mathbb{E}_{X, \sigma}\left[h(X, \sigma)\right] = \mathbb{E}_{X}\left[\sup_{p, s\in \bar{I}}\left\vert u_p(s; \mathscr{D}) - \hat{u}_p(s; X)\right\vert\right] - 2\mathfrak{R}_m(\Gamma, \bar{I}, \mathscr{D})$$
 
-We can now apply McDiamard's Inequality to the function $$h$$, giving us the following result
+We can now apply McDiarmid's Inequality to the function $$h$$, giving us the following result
 
 $$
 \begin{align*}
