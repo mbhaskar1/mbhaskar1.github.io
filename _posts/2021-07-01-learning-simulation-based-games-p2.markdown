@@ -1,12 +1,12 @@
 ---
 layout: post
-title:  "Paper Walkthrough: Learning Equilibria in Simulation Based Games - Part 2"
+title:  "Paper Walkthrough: Learning Equilibria of Simulation Based Games - Part 2"
 date:   2021-07-08
 categories: [paper-walkthrough]
 excerpt: This is part 2 of my Paper Walkthrough of the paper "Learning Equilibria in Simulation Based Games" by Enrique Areyan Viqueria, Cyrus Cousins, Eli Upfal, and Amy Greenwald [1]. If you have not read part 1, please go back and read it first. I will begin this part by doing a small recap of what has been covered so far...
 ---
 
-This is part 2 of my Paper Walkthrough of the paper ["Learning Equilibria in Simulation Based Games"](http://arxiv.org/abs/1905.13379) by Enrique Areyan Viqueria, Cyrus Cousins, Eli Upfal, and Amy Greenwald [1]. If you have not read [part 1](https://mbhaskar1.github.io/paper-walkthrough/2021/06/17/learning-simulation-based-games-p1.html), please go back and read it first. I will begin this part by doing a small recap of what has been covered so far.
+This is part 2 of my Paper Walkthrough of the paper ["Learning Equilibria of Simulation Based Games"](http://arxiv.org/abs/1905.13379) by Enrique Areyan Viqueria, Cyrus Cousins, Eli Upfal, and Amy Greenwald [1]. If you have not read [part 1](https://mbhaskar1.github.io/paper-walkthrough/2021/06/17/learning-simulation-based-games-p1.html), please go back and read it first. I will begin this part by doing a small recap of what has been covered so far.
 
 In part 1 of this Paper Walkthrough, we primarily laid down the groundwork for the problem that is going to be analyzed. We introduced several formal game representations, including **expected normal-form games** and **empirical normal-form games**, the latter being what we use to represent simulation-based games. We formulated a metric $$d_\infty$$ for measuring the closeness between two normal-form games, in this case an empirical normal-form game and the expected normal-form game it is approximating, and we argued for the appropriateness of the metric given our use case. Finally, in the spirit of the Probably Approximately Correct Learning Framework, we decided to direct our analysis towards searching for guarantees about closeness that hold with high probability, but not necessarily with certainty. More precisely, given a sample $$X\sim \mathscr{D}^m$$ used to create an empirical normal-form game $$\Gamma_X = \langle P, S, \hat{u}\rangle$$ approximating an expected normal-form game $$\Gamma_\mathscr{D} = \langle P, S, u\rangle$$, and an error-rate $$\delta\in (0, 1)$$, we are searching for $$\epsilon>0$$ that result in strong guarantees of the form
 

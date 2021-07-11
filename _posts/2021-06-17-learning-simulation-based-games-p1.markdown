@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Paper Walkthrough: Learning Equilibria in Simulation Based Games - Part 1"
+title:  "Paper Walkthrough: Learning Equilibria of Simulation Based Games - Part 1"
 date:   2021-06-30
 categories: [paper-walkthrough]
 excerpt: 
@@ -8,7 +8,7 @@ excerpt:
 
 Over the past year, I've developed a strong interest in the research area of Algorithmic Game Theory, specifically areas concerned with computational decision making. In learning about topics from this area, I have been working through a very large body of literature. Through this series of "Paper Walkthroughs," I hope to deepen my understanding of some papers that interest me and to potentially produce some useful content that can be of help to others.
 
-In this specific Paper Walkthrough, I will be conducting a very thorough look at the paper ["Learning Equilibria in Simulation Based Games"](http://arxiv.org/abs/1905.13379) by Enrique Areyan Viqueria, Cyrus Cousins, Eli Upfal, and Amy Greenwald [1]. I came across this paper after watching a [talk](https://youtu.be/ppLsrFHQUrM) on the paper by Dr. Greenwald on YouTube. I feel the problem it tackles is a very practical one with many important real-world applications, and the work also closely aligns with my own research interests. Before I begin discussing the paper, below are some prerequisites that I will assume are met by any reader:
+In this specific Paper Walkthrough, I will be conducting a very thorough look at the paper ["Learning Equilibria of Simulation Based Games"](http://arxiv.org/abs/1905.13379) by Enrique Areyan Viqueria, Cyrus Cousins, Eli Upfal, and Amy Greenwald [1]. I came across this paper after watching a [talk](https://youtu.be/ppLsrFHQUrM) on the paper by Dr. Greenwald on YouTube. I feel the problem it tackles is a very practical one with many important real-world applications, and the work also closely aligns with my own research interests. Before I begin discussing the paper, below are some prerequisites that I will assume are met by any reader:
 
 ### Prerequisites
 - A basic understanding of Game Theory concepts (Normal-form games, pure and mixed strategy sets, regret, Nash equilibriums, ϵ-Nash equilibriums, etc.)
